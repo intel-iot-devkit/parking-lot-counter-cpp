@@ -237,12 +237,14 @@ void frameRunner() {
 
             int count = 0;
             // detect if there are any cars in marked area
+            //for (Iter c = cars.begin(); it!=cars.end(); ++it) {
             for(auto const& c: cars) {
+                cout << "DX: " << c.x << " DY: " << c.y << " DW: " << c.width << " DH: " << c.height << endl;
                 // calculate detected car centroid
                 int x = static_cast<int>((c.x + c.width)/2.0);
                 int y = static_cast<int>((c.y + c.height)/2.0);
 
-                cout << "C_X: " << x << " C_Y: " << y << endl;
+                cout << "CENTER_X: " << x << " CENTER_Y: " << y << endl;
 
                 // check if its in the marked area; increment/decrement
                 if (axis.compare("x") == 0) {
