@@ -203,11 +203,9 @@ void frameRunner() {
         Mat next = nextImageAvailable();
         if (!next.empty()) {
             // convert to 4d vector as required by face detection model, and detect cars
-            blobFromImage(next, blob, 1.0, Size(300, 300));
+            //blobFromImage(next, blob, 1.0, Size(300, 300));
+            blobFromImage(next, blob, 1.0, Size(672, 384));
             net.setInput(blob);
-            cout << "STOP FRAME_RUNNER HERE TO WAIT FOR THE MAIN THREAD" << endl;
-            this_thread::sleep_for(std::chrono::milliseconds(1000));
-            cout << "COREDUMPS HERE: " << &net << endl;
             Mat result = net.forward();
 
             // get detected cars
@@ -235,12 +233,9 @@ void frameRunner() {
             for(auto const& c: cars) {
                 // TODO: this will have to change to tracking car center
                 // make sure the person rect is completely inside the main Mat
-                //if ((c & Rect(0, 0, next.cols, next.rows)) != c) {
-                //    continue;
-                //}
-
-                // TODO: figure out the counting here
-                //rectangle(next, c, (0, 255, 0), 2);
+                if ((c & Rect(0, 0, next.cols, next.rows)) != c) {
+                    continue;
+                }
             }
 
             // operator data
@@ -352,8 +347,6 @@ int main(int argc, char** argv)
         label = format("Car Count: %d", info.count);
         putText(frame, label, Point(0, 40), FONT_HERSHEY_SIMPLEX, 0.5, CV_RGB(0, 0, 255));
 
-        cout << "STOP MAIN_THREAD TO WAIT FOR INFERENCE TO KICK IN" << endl;
-        this_thread::sleep_for(std::chrono::milliseconds(2000));
         imshow("Parking Tracker", frame);
 
         if (waitKey(delay) >= 0 || sig_caught) {
