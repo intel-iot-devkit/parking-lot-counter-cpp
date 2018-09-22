@@ -1,0 +1,5 @@
+.vagrant/
+Vagrantfile
+build/
+*.mp4
+resources/
