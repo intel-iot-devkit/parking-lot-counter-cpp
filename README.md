@@ -1,4 +1,4 @@
-# Factory Virtual Fence
+# Available Parking Tracker
 
 | Details            |              |
 |-----------------------|---------------|
@@ -12,7 +12,7 @@
 
 This parking space monitor is one of a series of reference implementations for Computer Vision (CV) using the OpenVINO™ toolkit. This application is designed for a parking space area mounted camera which monitors available parking space by tracking the counts of the vehicles entering and leaving the parking space area.
 
-This example is intended to demonstrate how to use CV to monitor parking spaces in dedicated parking area;
+This example is intended to demonstrate how to use CV to monitor parking spaces in dedicated parking area.
 
 ## Requirements
 
@@ -117,7 +117,7 @@ To run the code using 16-bit floats, you have to both set the `-t` flag to use t
 
 ## Sample videos
 
-There are several videos available to use as sample videos to show the capabilities of this application. You can download them by running these commands from the `factory-virtual-fence-cpp` directory:
+There are several videos available to use as sample videos to show the capabilities of this application. You can download them by running these commands from the `available-parking-tracker-cpp` directory:
 ```
     mkdir resources
     cd resources
@@ -125,7 +125,7 @@ There are several videos available to use as sample videos to show the capabilit
     cd ..
 ```
 
-To then execute the code using one of these sample videos, run the following commands from the `factory-virtual-fence-cpp` directory:
+To then execute the code using one of these sample videos, run the following commands from the `available-parking-tracker-cpp` directory:
 ```
     cd build
     ./monitor -m=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/vehicle-detection-adas-0002/FP32/vehicle-detection-adas-0002.bin -c=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/vehicle-detection-adas-0002/FP32/vehicle-detection-adas-0002.xml -i=../resources/car-detection.mp4
@@ -143,5 +143,5 @@ Change the `MQTT_SERVER` to a value that matches the MQTT server you are connect
 
 You should change the `MQTT_CLIENT_ID` to a unique value for each monitoring station, so you can track the data for individual locations. For example:
 ```
-    export MQTT_CLIENT_ID=factory1337
+    export MQTT_CLIENT_ID=parkinglot1337
 ```
