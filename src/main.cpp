@@ -32,6 +32,7 @@
 #include <ctime>
 #include <mutex>
 #include <syslog.h>
+#include <string>
 
 // OpenCV includes
 #include <opencv2/core.hpp>
@@ -58,6 +59,8 @@ String model;
 String config;
 int backendId;
 int targetId;
+string axis;
+int bline;
 int rate;
 
 // flag to control background threads
@@ -100,6 +103,8 @@ const char* keys =
                         "1: OpenCL, "
                         "2: OpenCL fp16 (half-float precision), "
                         "3: VPU }"
+    "{ axis a      | x | plane axis for entrance division. }"
+    "{ bline l     | 0 | marks a boundary line for the chosen axis. }"
     "{ rate r      | 1 | number of seconds between data updates to MQTT server. }";
 
 // nextImageAvailable returns the next image from the queue in a thread-safe way
@@ -225,22 +230,45 @@ void frameRunner() {
                     int width = right - left + 1;
                     int height = bottom - top + 1;
 
+                    cout << "X: " << left << " Y: " << right << " W: " << width << " H: " << height << endl;
                     cars.push_back(Rect(left, top, width, height));
                 }
             }
 
-            // detect if there are any people in marked area
+            int count = 0;
+            // detect if there are any cars in marked area
             for(auto const& c: cars) {
-                // TODO: this will have to change to tracking car center
-                // make sure the person rect is completely inside the main Mat
-                if ((c & Rect(0, 0, next.cols, next.rows)) != c) {
-                    continue;
+                // calculate detected car centroid
+                int x = static_cast<int>((c.x + c.width)/2.0);
+                int y = static_cast<int>((c.y + c.height)/2.0);
+
+                cout << "C_X: " << x << " C_Y: " << y << endl;
+
+                // check if its in the marked area; increment/decrement
+                if (axis.compare("x") == 0) {
+                    if((y > 0 && y < frame.rows) && (x > bline && x < frame.cols) ) {
+                        //cout << "INCREMENT X" << endl;
+		        count++;
+		    } else if (count > 0) {
+                        //cout << "DECREMENT X" << endl;
+                        count--;
+                    }
+                }
+
+                if (axis.compare("y") == 0) {
+                    if((x > 0 && x < frame.cols) && (y > bline && y < frame.rows)) {
+                        //cout << "INCREMENT Y" << endl;
+		        count++;
+		    } else if (count > 0) {
+                        //cout << "DECREMENT Y" << endl;
+                        count--;
+                    }
                 }
             }
 
             // operator data
             ParkingInfo info;
-            info.count = cars.size();
+            info.count = count;
 
             updateInfo(info);
             savePerformanceInfo();
@@ -287,6 +315,8 @@ int main(int argc, char** argv)
     config = parser.get<String>("config");
     backendId = parser.get<int>("backend");
     targetId = parser.get<int>("target");
+    axis = parser.get<string>("axis");
+    bline = parser.get<int>("bline");
     rate = parser.get<int>("rate");
 
     // connect MQTT messaging
@@ -335,6 +365,14 @@ int main(int argc, char** argv)
             keepRunning = false;
             cerr << "ERROR! blank frame grabbed\n";
             break;
+        }
+
+        if (axis.compare("x") == 0) {
+            line(frame, Point(bline, 0), Point(bline, frame.rows), CV_RGB(255, 0, 0), 2);
+        }
+
+        if (axis.compare("y") == 0) {
+            line(frame, Point(0, bline), Point(frame.cols, bline), CV_RGB(255, 0, 0), 2);
         }
 
         addImage(frame);
