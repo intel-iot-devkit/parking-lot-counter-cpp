@@ -230,39 +230,43 @@ void frameRunner() {
                     int width = right - left + 1;
                     int height = bottom - top + 1;
 
-                    cout << "X: " << left << " Y: " << right << " W: " << width << " H: " << height << endl;
                     cars.push_back(Rect(left, top, width, height));
                 }
             }
 
             int count = 0;
             // detect if there are any cars in marked area
-            //for (Iter c = cars.begin(); it!=cars.end(); ++it) {
             for(auto const& c: cars) {
-                cout << "DX: " << c.x << " DY: " << c.y << " DW: " << c.width << " DH: " << c.height << endl;
                 // calculate detected car centroid
-                int x = static_cast<int>((c.x + c.width)/2.0);
-                int y = static_cast<int>((c.y + c.height)/2.0);
+                int x, y;
+                int width = c.width;
+                int height = c.height;
 
-                cout << "CENTER_X: " << x << " CENTER_Y: " << y << endl;
+                // adjust the detected rectangle width to the size of the frame
+                if ((c.x + c.width) > frame.cols) {
+                    width = frame.cols - c.x;
+                }
+
+                if ((c.y + c.height) > frame.rows) {
+                    height = frame.rows - c.y;
+                }
+
+                x = c.x + static_cast<int>(width/2.0);
+                y = c.y + static_cast<int>(height/2.0);
 
                 // check if its in the marked area; increment/decrement
                 if (axis.compare("x") == 0) {
                     if((y > 0 && y < frame.rows) && (x > bline && x < frame.cols) ) {
-                        //cout << "INCREMENT X" << endl;
 		        count++;
 		    } else if (count > 0) {
-                        //cout << "DECREMENT X" << endl;
                         count--;
                     }
                 }
 
                 if (axis.compare("y") == 0) {
                     if((x > 0 && x < frame.cols) && (y > bline && y < frame.rows)) {
-                        //cout << "INCREMENT Y" << endl;
 		        count++;
 		    } else if (count > 0) {
-                        //cout << "DECREMENT Y" << endl;
                         count--;
                     }
                 }
