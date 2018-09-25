@@ -93,7 +93,7 @@ Once the commands are finished, you should have built the `monitor` application 
 
 To see a list of the various options:
 ```
-    ./monitor -h
+    ./monitor -help
 ```
 
 To run the application with the needed models using the webcam:
