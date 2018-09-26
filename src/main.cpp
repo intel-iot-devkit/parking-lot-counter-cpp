@@ -62,6 +62,7 @@ int targetId;
 string axis;
 int bline;
 int rate;
+float confidenceCar;
 
 // flag to control background threads
 atomic<bool> keepRunning(true);
@@ -93,6 +94,7 @@ const char* keys =
     "{ input i     | | Path to input image or video file. Skip this argument to capture frames from a camera. }"
     "{ model m     | | Path to .bin file of model containing face recognizer. }"
     "{ config c    | | Path to .xml file of model containing network configuration. }"
+    "{ carconf cc  | 0.5 | Confidence factor for car detection required. }"
     "{ backend b   | 0 | Choose one of computation backends: "
                         "0: automatically (by default), "
                         "1: Halide language (http://halide-lang.org/), "
@@ -215,12 +217,13 @@ void frameRunner() {
 
             // get detected cars
             vector<Rect> cars;
+            int count = 0;
 
             float* data = (float*)result.data;
             for (size_t i = 0; i < result.total(); i += 7)
             {
                 float confidence = data[i + 2];
-                if (confidence > 0.5)
+                if (confidence > confidenceCar)
                 {
                     int label = (int)data[i + 1];
                     int left = (int)(data[i + 3] * frame.cols);
@@ -234,29 +237,28 @@ void frameRunner() {
                 }
             }
 
-            int count = 0;
-            // detect if there are any cars in marked area
             for(auto const& c: cars) {
-                // calculate detected car centroid
-                int x, y;
                 int width = c.width;
                 int height = c.height;
 
-                // adjust the detected rectangle width to the size of the frame
-                if ((c.x + c.width) > frame.cols) {
-                    width = frame.cols - c.x;
+                // adjust the detected rectangle size to the size of the frame
+                if ((c.x + width) > next.cols) {
+                    width = next.cols - c.x;
                 }
 
-                if ((c.y + c.height) > frame.rows) {
-                    height = frame.rows - c.y;
+                if ((c.y + height) > next.rows) {
+                    height = next.rows - c.y;
                 }
 
-                x = c.x + static_cast<int>(width/2.0);
-                y = c.y + static_cast<int>(height/2.0);
+                // calculate detected car centroid coordinates
+                int x = c.x + static_cast<int>(width/2.0);
+                int y = c.y + static_cast<int>(height/2.0);
 
-                // check if its in the marked area; increment/decrement
+                //cout << "Centroid: X=" << x << " Y=" << y << " Bline: " << bline << endl;
+
                 if (axis.compare("x") == 0) {
-                    if((y > 0 && y < frame.rows) && (x > bline && x < frame.cols) ) {
+                    // X coordinage of car arriving will be increasing and vice versa
+                    if((y > 0 && y < frame.rows) && (x > bline && x < next.cols) ) {
 		        count++;
 		    } else if (count > 0) {
                         count--;
@@ -264,7 +266,8 @@ void frameRunner() {
                 }
 
                 if (axis.compare("y") == 0) {
-                    if((x > 0 && x < frame.cols) && (y > bline && y < frame.rows)) {
+                    // Y coordinage of car arriving will be shrinking and vice versa
+                    if((x > 0 && x < frame.cols) && (y < bline && y > 0)) {
 		        count++;
 		    } else if (count > 0) {
                         count--;
@@ -324,6 +327,7 @@ int main(int argc, char** argv)
     axis = parser.get<string>("axis");
     bline = parser.get<int>("bline");
     rate = parser.get<int>("rate");
+    confidenceCar = parser.get<float>("carconf");
 
     // connect MQTT messaging
     int result = mqtt_start(handleMQTTControlMessages);
