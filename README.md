@@ -101,6 +101,15 @@ To run the application with the needed models using the webcam:
     ./monitor -m=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/vehicle-detection-adas-0002/FP32/vehicle-detection-adas-0002.bin -c=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/vehicle-detection-adas-0002/FP32/vehicle-detection-adas-0002.xml
 ```
 
+To control the monitoring line to be used for counting of entry/exit from the parking area, use the `-axis` and `-bline` flags, like this:
+```
+    ./monitor -m=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/vehicle-detection-adas-0002/FP32/vehicle-detection-adas-0002.bin -c=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/vehicle-detection-adas-0002/FP32/vehicle-detection-adas-0002.xml -axis=y -bline=350
+```
+
+The `-axis` flag controls which axis is to be used for counting, either `"x"` for counting going left/right, or `"y"` for counting up/down.
+
+The  `-bline` flag controls the baseline positioning. For example `-bline=100` will place the baseline 100 pixels counting from either the left side if `-axis=x` or the top if `-axis=y`.
+
 ### Hardware acceleration
 
 This application can take advantage of the hardware acceleration in the OpenVINO toolkit by using the `-b` and `-t` parameters.
