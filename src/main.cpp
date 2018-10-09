@@ -105,9 +105,9 @@ const char* keys =
                         "1: OpenCL, "
                         "2: OpenCL fp16 (half-float precision), "
                         "3: VPU }"
-    "{ axis a      | x | plane axis for entrance division. }"
-    "{ bline l     | 0 | marks a boundary line for the chosen axis. }"
-    "{ rate r      | 1 | number of seconds between data updates to MQTT server. }";
+    "{ axis a      | x | Plane axis for entrance division mark. }"
+    "{ bline l     | 0 | Marks a boundary line for the chosen axis. }"
+    "{ rate r      | 1 | Number of seconds between data updates to MQTT server. }";
 
 // nextImageAvailable returns the next image from the queue in a thread-safe way
 Mat nextImageAvailable() {
@@ -258,7 +258,7 @@ void frameRunner() {
 
                 if (axis.compare("x") == 0) {
                     // X coordinage of car arriving will be increasing and vice versa
-                    if((y > 0 && y < frame.rows) && (x > bline && x < next.cols) ) {
+                    if((y > 0 && y < next.rows) && (x > bline && x < next.cols) ) {
 		        count++;
 		    } else if (count > 0) {
                         count--;
@@ -267,7 +267,7 @@ void frameRunner() {
 
                 if (axis.compare("y") == 0) {
                     // Y coordinage of car arriving will be shrinking and vice versa
-                    if((x > 0 && x < frame.cols) && (y < bline && y > 0)) {
+                    if((x > 0 && x < next.cols) && (y < bline && y > 0)) {
 		        count++;
 		    } else if (count > 0) {
                         count--;
