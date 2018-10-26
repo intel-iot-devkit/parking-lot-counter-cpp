@@ -64,8 +64,6 @@ float carconf;
 int backendId;
 int targetId;
 string axis;
-int bline;
-int spaces;
 int rate;
 
 // flag to control background threads
@@ -77,7 +75,7 @@ static volatile sig_atomic_t sig_caught = 0;
 // mqtt parameters
 const string topic = "parking/counter";
 
-// Car contains information about the trajectory of the car centroid
+// Car contains information about trajectory of the car centroid
 struct Car {
     int id;
     vector<Point> traject;
@@ -88,10 +86,16 @@ map<int, Car> tracked_cars;
 
 // id is a counter used to generate ids for tracked (car) centroids
 int id = 0;
-// centroids maps car ids to detected centroids
-map<int, Point> centroids;
-// gone tracks number of frames during which previously tracked car is not detected
-map<int, int> gone;
+// Centroid defines car centroid detected in video stream
+struct Centroid {
+    int id;
+    Point p;
+    int gone_count;
+    bool gone;
+};
+// centroids maps centroids by their ids
+map<int, Centroid> centroids;
+
 // max_frames_gone and max_distance are thresholds used when marking car as gone
 int max_frames_gone = 30;
 int max_distance = 50;
@@ -133,8 +137,6 @@ const char* keys =
                         "2: OpenCL fp16 (half-float precision), "
                         "3: VPU }"
     "{ axis a      | x | Plane axis for entrance division mark. }"
-    "{ bline l     | 0 | Marks a boundary line for the chosen axis. }"
-    "{ spaces s    | 1000 | Number of available parking spaces. }"
     "{ rate r      | 1 | Number of seconds between data updates to MQTT server. }";
 
 // nextImageAvailable returns the next image from the queue in a thread-safe way
@@ -232,15 +234,15 @@ int handleMQTTControlMessages(void *context, char *topicName, int topicLen, MQTT
     return 1;
 }
 
-// closest_centroid finds the id of the tracked centroid which is the closest to the supplied centroid
+// closestCentroid finds the id of the tracked centroid which is the closest to the supplied centroid
 // the function uses euclidean distance as a measure of the closeness of the centroids and returns both as a pair
-pair<int, double> closest_centroid(const Point p, const map<int, Point> centroids) {
+pair<int, double> closestCentroid(const Point p, const map<int, Centroid> centroids) {
     int id = 0;
     double dist = DBL_MAX;
 
-    for (const auto& c: centroids) {
-         int _id = c.first;
-         Point _p = c.second;
+    for (map<int, Centroid>::const_iterator it = centroids.begin(); it != centroids.end(); ++it) {
+         int _id = it->second.id;
+         Point _p = it->second.p;
 
          double dx = double(p.x - _p.x);
          double dy = double(p.y - _p.y);
@@ -257,35 +259,38 @@ pair<int, double> closest_centroid(const Point p, const map<int, Point> centroid
 
 // addCentroid adds a new centroid to the list of tracked centroids and increments id counter
 void addCentroid(Point p) {
-    centroids[id] = p;
-    gone[id] = 0;
+    Centroid c;
+    c.id = id;
+    c.p = p;
+    c.gone_count = 0;
+    c.gone = false;
+
+    centroids[c.id] = c;
     id++;
 }
 
 // removeCentroid removes existing centroid from the list of tracked centroids
 void removeCentroid(int id) {
     centroids.erase(id);
-    gone.erase(id);
 }
 
 // updateCentroids takes detected centroid points and updates trackeed centroids
 void updateCentroids(vector<Point> points) {
     if (points.size() == 0) {
-        for (const auto& g : gone) {
-            int id = g.first;
-            gone[id]++;
-            cout << "gone[" << id << "]++" << endl;
-            if (gone[id] > max_frames_gone) {
-                cout << "removeCentroid(" << id << ")" << endl;
-                removeCentroid(id);
+        for (map<int, Centroid>::iterator it = centroids.begin(); it != centroids.end(); ++it) {
+            it->second.gone_count++;
+            cout << "centroid.gone[" << it->second.id << "]++" << endl;
+            if (it->second.gone_count > max_frames_gone) {
+                cout << "CENTROID " << it->second.id << " GONE" << endl;
+                it->second.gone = true;
             }
         }
 
         return;
     }
 
-    if (centroids.empty()){
-        cout << "No centroids yet" << endl;
+    if (centroids.empty()) {
+        cout << "NO CENTROIDS YET" << endl;
         for(const auto& p: points) {
             cout << "addCentroid(" << p << ")" << endl;
             addCentroid(p);
@@ -295,36 +300,39 @@ void updateCentroids(vector<Point> points) {
         set<int> checked_centroids;
         // iterate through all detected points and update tracked centroid positions
         for(vector<Point>::size_type i = 0; i != points.size(); i++) {
-            pair<int, double> closest = closest_centroid(points[i], centroids);
-            cout << "Closest centroid: " << closest.first << endl;
-            if ((checked_points.find(closest.first) != checked_points.end()) || (closest.second > max_distance)) {
+            pair<int, double> closest = closestCentroid(points[i], centroids);
+            cout << "CLOSEST CENTROID: " << closest.first << " DISTANCE: " << closest.second << endl;
+            if (closest.second > max_distance) {
+                cout << "SKIPPING CENTROID UPDATE" << endl;
                 continue;
             }
-            // update position of closest centroid
-            centroids[closest.first] = points[i];
-            gone[closest.second] = 0;
+            // update position of the closest centroid
+            centroids[closest.first].p = points[i];
+            centroids[closest.first].gone_count = 0;
+            centroids[closest.first].gone = false;
             checked_points.insert(i);
             checked_centroids.insert(closest.first);
         }
 
-        // iterate through all tracked centroids and increment their gone frame count
+        // iterate through all *already tracked* centroids and increment their gone frame count
         // if they werent updated from the list of detected centroid points
-        for (auto& c: centroids) {
-            int id = c.first;
-            // id centroid wasn't updated - we assume it's missing from the frame
+        for (map<int,Centroid>::iterator it = centroids.begin(); it != centroids.end(); ++it) {
+            // if centroid wasn't updated - we assume it's missing from the frame
             if (checked_centroids.find(id) == checked_centroids.end()) {
-                gone[id]++;
-                if (gone[id] > max_frames_gone) {
-                    removeCentroid(id);
+                it->second.gone_count++;
+                if (it->second.gone_count > max_frames_gone) {
+                    cout << "CENTROID " << it->second.id << " GONE" << endl;
+                    it->second.gone = true;
                 }
             }
         }
 
-        // iterate through all detected centroids and add the ones which werent associated
+        // iterate through all *detected* centroids and add the ones which werent associated
         // with any of the tracked centroids and add start tracking them
         for(vector<Point>::size_type i = 0; i != points.size(); i++) {
-            // detected point was not associated with any already tracked centroids
+            // if detected point was not associated with any already tracked centroids we add it in
             if (checked_points.find(i) == checked_points.end()) {
+                cout << "ADDING NEW CETROID: NOT ASSOCIATED WITH ALREADY TRACKED CENTROIDS" << endl;
                 addCentroid(points[i]);
             }
         }
@@ -366,59 +374,63 @@ void frameRunner() {
                 }
             }
 
+            cout << "DETECTED CARS: " << frame_cars.size() << endl;
+
             vector<Point> frame_centroids;
-            for(auto const& c: frame_cars) {
+            for(auto const& fc: frame_cars) {
                 // make sure the car rect is completely inside the main Mat
-                if ((c & Rect(0, 0, next.cols, next.rows)) != c) {
+                if ((fc & Rect(0, 0, next.cols, next.rows)) != fc) {
                     continue;
                 }
 
                 // detected rectangle dimensions
-                int width = c.width;
-                int height = c.height;
+                int width = fc.width;
+                int height = fc.height;
 
                 // TODO: Sometimes the detected rectangle stretches way over the actual car
                 // so we need clip the sizes of the rectangle to avoid skewing the centroid position
                 int w_clip = 200;
                 if (width > w_clip) {
-                    if ((c.x + w_clip) < frame.cols) {
+                    if ((fc.x + w_clip) < frame.cols) {
                         width = w_clip;
                     }
-                } else if ((c.x + width) > frame.cols) {
-                    width = frame.cols - c.x;
+                } else if ((fc.x + width) > frame.cols) {
+                    width = frame.cols - fc.x;
                 }
 
                 int h_clip = 350;
                 if (height > h_clip) {
-                    if ((c.y + h_clip) < frame.rows){
+                    if ((fc.y + h_clip) < frame.rows){
                         height = h_clip;
                     }
-                } else if ((c.y + height) > frame.rows) {
-                    height = frame.rows - c.y;
+                } else if ((fc.y + height) > frame.rows) {
+                    height = frame.rows - fc.y;
                 }
 
                 // calculate detected car centroid coordinates
-                int x = c.x + static_cast<int>(width/2.0);
-                int y = c.y + static_cast<int>(height/2.0);
+                int x = fc.x + static_cast<int>(width/2.0);
+                int y = fc.y + static_cast<int>(height/2.0);
 
                 // append detected centroid and draw rectangle
                 frame_centroids.push_back(Point(x,y));
-                rectangle(next, Rect(c.x, c.y, width, height), CV_RGB(0, 255, 0), 2);
             }
 
-            cout << "DETECTED CENTROIDS: " << frame_centroids.size() << endl;
+            //cout << "DETECTED CENTROIDS: " << frame_centroids.size() << endl;
+            cout << "DETECTED CENTROIDS: " << frame_centroids << endl;
 
             // update tracked centroids using the centroids detected in the frame
             updateCentroids(frame_centroids);
 
-            //cout << "Centroid count: " << centroids.size() << " Gone count:" << gone.size() << endl;
-            for (auto& c: centroids) {
-                int id = c.first;
-                Point p = c.second;
+            cout << "CENTROID COUNT: " << centroids.size() << endl;
+
+            for (map<int, Centroid>::iterator it = centroids.begin(); it != centroids.end(); ++it) {
+                int id = it->second.id;
+                Point p = it->second.p;
+                bool gone = it->second.gone;
 
                 Car car;
                 if (tracked_cars.find(id) == tracked_cars.end()){
-                    cout << "Never seen before: " << id << endl;
+                    cout << "NEW CAR DETECTED: " << id << endl;
                     car.id = id;
                     car.traject.push_back(p);
                     car.counted = false;
@@ -450,37 +462,38 @@ void frameRunner() {
                     if (!car.counted) {
                         if (axis.compare("x") == 0) {
                             // direction is "positive" (RIGHT) and centroid right of vertical boundary line
-                            if (direction > 0 && p.x > bline) {
+                            if (direction > 0 && !gone) {
                                 cout << "RIGHT INCREMENT" << endl;
                                 total_in++;
                                 car.counted = true;
-                            } else if (direction < 0 && p.x < bline) {
-                                       cout << "RIGHT INCREMENT" << endl;
+                            } else if (direction < 0 && gone) {
+                                       cout << "LEFT INCREMENT" << endl;
                                        total_out++;
                                        car.counted = true;
+                                       removeCentroid(id);
                             } else {
-                                cout << "CAR: " << car.id << " NOT COUNTED" << endl;
+                                cout << "CAR: " << car.id << " NOT MOVING" << endl;
                             }
                         }
                         if (axis.compare("y") == 0) {
                             // direction is "negative" (UP) and centroid above horizontal boundary line
-                            if (direction < 0 && p.y < bline) {
+                            if (direction < 0 && !gone) {
                                 cout << "UP INCREMENT" << endl;
                                 total_in++;
                                 car.counted = true;
-                            } else if (direction > 0 && p.y > bline) {
+                            } else if (direction > 0 && gone) {
                                        cout << "DOWN INCREMENT" << endl;
                                        total_out++;
                                        car.counted = true;
+                                       removeCentroid(id);
                             } else {
-                                cout << "CAR: " << car.id << " NOT COUNTED" << endl;
+                                cout << "CAR: " << car.id << " NOT MOVING" << endl;
                             }
                         }
                     }
                 }
                 tracked_cars[id] = car;
-                cout << "Updated car: " << car.id << " Positions: " << car.traject << endl;
-                circle(next, p, 5.0, CV_RGB(0, 255, 0), 2);
+                cout << "UPDATED CAR: " << car.id << " POSITIONS: " << car.traject << endl;
             }
 
             updateInfo(total_in, total_out);
@@ -530,9 +543,7 @@ int main(int argc, char** argv)
     backendId = parser.get<int>("backend");
     targetId = parser.get<int>("target");
     axis = parser.get<string>("axis");
-    bline = parser.get<int>("bline");
     rate = parser.get<int>("rate");
-    spaces = parser.get<int>("spaces");
 
     // connect MQTT messaging
     int result = mqtt_start(handleMQTTControlMessages);
@@ -565,9 +576,6 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    // Initialize parking space info
-    currentInfo.count = spaces;
-
     // register SIGTERM signal handler
     signal(SIGTERM, handle_sigterm);
 
@@ -583,14 +591,6 @@ int main(int argc, char** argv)
             keepRunning = false;
             cerr << "ERROR! blank frame grabbed\n";
             break;
-        }
-
-        if (axis.compare("x") == 0) {
-            line(frame, Point(bline, 0), Point(bline, frame.rows), CV_RGB(255, 0, 0), 2);
-        }
-
-        if (axis.compare("y") == 0) {
-            line(frame, Point(0, bline), Point(frame.cols, bline), CV_RGB(255, 0, 0), 2);
         }
 
         addImage(frame);
