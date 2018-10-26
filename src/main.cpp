@@ -423,6 +423,7 @@ void frameRunner() {
 
             cout << "CENTROID COUNT: " << centroids.size() << endl;
 
+            // iterate through updated centroids and update tracked car counts
             for (map<int, Centroid>::iterator it = centroids.begin(); it != centroids.end(); ++it) {
                 int id = it->second.id;
                 Point p = it->second.p;
@@ -492,8 +493,9 @@ void frameRunner() {
                         }
                     }
                 }
+                cout << "TOTAL IN: " << total_in << " TOTAL OUT: " << total_out << endl;
                 tracked_cars[id] = car;
-                cout << "UPDATED CAR: " << car.id << " POSITIONS: " << car.traject << endl;
+                //cout << "UPDATED CAR: " << car.id << " POSITIONS: " << car.traject << endl;
             }
 
             updateInfo(total_in, total_out);
