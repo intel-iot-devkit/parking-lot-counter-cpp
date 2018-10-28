@@ -80,8 +80,6 @@ struct Car {
     int id;
     vector<Point> traject;
     bool counted;
-    // TODO: remove direction information
-    int direction;
 };
 // tracked_cars tracks detected car by their ids
 map<int, Car> tracked_cars;
@@ -100,7 +98,7 @@ map<int, Centroid> centroids;
 
 // max_frames_gone and max_distance are thresholds used when marking car as gone
 int max_frames_gone = 20;
-int max_distance = 50;
+int max_distance = 200;
 
 // total cars in and out of the parking
 int total_in = 0;
@@ -179,7 +177,7 @@ ParkingInfo getCurrentInfo() {
 // updateInfo uppdates the current ParkingInfo for the application to the latest detected values
 void updateInfo() {
     m2.lock();
-    // TODO: do something clever with out and in and count
+    // TODO: do something clever with out and in counts
     currentInfo.total_in = total_in;
     currentInfo.total_out = total_out;
     currentInfo.centroids = centroids;
@@ -497,27 +495,28 @@ void frameRunner() {
                         direction = p.y - mean_movement;
                     }
 
-                    cout << "CAR: " << car.id << " DIRECTION: " << direction << " COUNTED: " << car.counted << endl;
-                    //cout << "CAR: " << car.id << " COUNTED: " << car.counted << endl;
+                    cout << "CAR: " << car.id <<
+                            " DIRECTION: " << direction <<
+                            " COUNTED: " << car.counted << endl;
+
                     if (!car.counted) {
                         if (axis.compare("x") == 0) {
-                            //// direction is "positive" (RIGHT) and centroid right of vertical boundary line
-                            //if (direction > 0 && !gone) {
-                            //    cout << "RIGHT INCREMENT" << endl;
-                            //    total_in++;
-                            //    car.counted = true;
-                            //} else if (direction < 0 && gone) {
-                            //           cout << "LEFT INCREMENT" << endl;
-                            //           total_out++;
-                            //           car.counted = true;
-                            //           removeCentroid(id);
-                            //} else {
-                            //    cout << "CAR: " << car.id << " NOT MOVING" << endl;
-                            //    if (gone) {
-                            //        removeCentroid(id);
-                            //    }
-                            //}
+                            // direction is "positive" (RIGHT) and centroid right of vertical boundary line
+                            if (direction > 0) {
+                                cout << "RIGHT INCREMENT" << endl;
+                                total_in++;
+                                cout << "TOTAL IN: " << total_in << endl;
+                                car.counted = true;
+                            } else if (direction < 0) {
+                                cout << "LEFT INCREMENT" << endl;
+                                cout << "TOTAL OUT: " << total_out << endl;
+                                total_out++;
+                                car.counted = true;
+                            } else {
+                                cout << "CAR: " << car.id << " NOT MOVING" << endl;
+                            }
                         }
+
                         if (axis.compare("y") == 0) {
                             // direction is "negative" (UP) and centroid above horizontal boundary line
                             if (direction < 0) {
@@ -536,10 +535,8 @@ void frameRunner() {
                         }
                     }
                 }
-                //cout << "TOTAL IN: " << total_in << " TOTAL OUT: " << total_out << endl;
+                // update tracked car
                 tracked_cars[id] = car;
-                //cout << "UPDATED CAR: " << car.id << endl;
-                //cout << "UPDATED CAR: " << car.id << " POSITIONS: " << car.traject << endl;
             }
 
             updateInfo();
