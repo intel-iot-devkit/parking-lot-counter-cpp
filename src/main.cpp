@@ -63,7 +63,7 @@ String config;
 float carconf;
 int backendId;
 int targetId;
-string axis;
+string entrance;
 int rate;
 
 // flag to control background threads
@@ -80,6 +80,8 @@ struct Car {
     int id;
     vector<Point> traject;
     bool counted;
+    bool gone;
+    int direction;
 };
 // tracked_cars tracks detected car by their ids
 map<int, Car> tracked_cars;
@@ -91,13 +93,13 @@ struct Centroid {
     int id;
     Point p;
     int gone_count;
-    bool gone;
+    //bool gone;
 };
 // centroids maps centroids by their ids
 map<int, Centroid> centroids;
 
 // max_frames_gone and max_distance are thresholds used when marking car as gone
-int max_frames_gone = 20;
+int max_frames_gone = 30;
 int max_distance = 200;
 
 // total cars in and out of the parking
@@ -139,7 +141,11 @@ const char* keys =
                         "1: OpenCL, "
                         "2: OpenCL fp16 (half-float precision), "
                         "3: VPU }"
-    "{ axis a      | x | Plane axis for entrance division mark. }"
+    "{ entrance e  | b | Plane axis for parking  entrance and exit division mark. Possible options: "
+                        "b: Bottom frame, "
+                        "t: Top frame, "
+                        "l: Left frame, "
+                        "r: Right frame }"
     "{ rate r      | 1 | Number of seconds between data updates to MQTT server. }";
 
 // nextImageAvailable returns the next image from the queue in a thread-safe way
@@ -252,15 +258,15 @@ pair<int, double> closestCentroid(const Point p, const map<int, Centroid> centro
          int _id = it->second.id;
          Point _p = it->second.p;
 
-         // Only consider centroids within small pixel interval
-         if (axis.compare("y") == 0) {
-             if (_p.x < (p.x-20) || _p.x > (p.x+20)){
+         if (entrance.compare("l") == 0) {
+             if ((_p.y < (p.y-20)) || (_p.y > (p.y+20))){
                  continue;
              }
          }
 
-         if (axis.compare("x") == 0) {
-             if ((_p.y < (p.y-20)) || (_p.y > (p.y+20))){
+         // Only consider centroids within small pixel interval
+         if (entrance.compare("b") == 0) {
+             if (_p.x < (p.x-20) || _p.x > (p.x+20)){
                  continue;
              }
          }
@@ -284,7 +290,7 @@ void addCentroid(Point p) {
     c.id = id;
     c.p = p;
     c.gone_count = 0;
-    c.gone = false;
+    //c.gone = false;
 
     centroids[c.id] = c;
     id++;
@@ -294,8 +300,10 @@ void addCentroid(Point p) {
 void removeCentroid(int id) {
     cout << "REMOVING_CENTROID: " << id << endl;
     centroids.erase(id);
-    if (tracked_cars.find(id) == tracked_cars.end()){
-        tracked_cars.erase(id);
+    // finds ID centroid in tracked cars: mark it as gone
+    if (tracked_cars.find(id) != tracked_cars.end()){
+        cout << "CAR: " << id << " GONE" << endl;
+        tracked_cars[id].gone = true;
     }
 }
 
@@ -308,7 +316,7 @@ void updateCentroids(vector<Point> points) {
             cout << "NO_POINTS_CENTROID_GONE_COUNT: " << it->second.gone_count << endl;
             if (it->second.gone_count > max_frames_gone) {
                 cout << "NO_POINTS_CENTROID_GONE: " << it->second.id << endl;
-                it->second.gone = true;
+                //it->second.gone = true;
                 removeCentroid(it->second.id);
             }
         }
@@ -339,7 +347,7 @@ void updateCentroids(vector<Point> points) {
             // update position of the closest centroid
             centroids[closest.first].p = points[i];
             centroids[closest.first].gone_count = 0;
-            centroids[closest.first].gone = false;
+            //centroids[closest.first].gone = false;
             checked_points.insert(i);
             checked_centroids.insert(closest.first);
         }
@@ -352,7 +360,7 @@ void updateCentroids(vector<Point> points) {
                 it->second.gone_count++;
                 if (it->second.gone_count > max_frames_gone) {
                     cout << "CHECKED_CENTROID_GONE: " << it->second.id << endl;
-                    it->second.gone = true;
+                    //it->second.gone = true;
                     removeCentroid(it->second.id);
                 }
             }
@@ -462,9 +470,7 @@ void frameRunner() {
             for (map<int, Centroid>::iterator it = centroids.begin(); it != centroids.end(); ++it) {
                 int id = it->second.id;
                 Point p = it->second.p;
-                bool gone = it->second.gone;
-
-                //cout << "CENTROID: " << id << " GONE: " << gone << endl;
+                //bool gone = it->second.gone;
 
                 Car car;
                 if (tracked_cars.find(id) == tracked_cars.end()){
@@ -472,71 +478,84 @@ void frameRunner() {
                     car.id = id;
                     car.traject.push_back(p);
                     car.counted = false;
+                    car.gone = false;
+                    car.direction = 0;
                 } else {
                     car = tracked_cars[id];
                     // calculate mean from car (centroid) trajectory
                     int mean_movement = 0;
                     for(vector<Point>::size_type i = 0; i != car.traject.size(); i++) {
-                        if (axis.compare("x") == 0) {
+                        if (entrance.compare("l") == 0) {
                             mean_movement = mean_movement + car.traject[i].x;
                         }
-                        if (axis.compare("y") == 0) {
+                        if (entrance.compare("b") == 0) {
                             mean_movement = mean_movement + car.traject[i].y;
                         }
                     }
                     mean_movement = mean_movement / car.traject.size();
                     car.traject.push_back(p);
 
-                    int direction = 0;
-                    if (axis.compare("x") == 0) {
-                        direction = p.x - mean_movement;
+                    if (entrance.compare("l") == 0) {
+                        car.direction = p.x - mean_movement;
                     }
-                    if (axis.compare("y") == 0) {
-                        direction = p.y - mean_movement;
+                    if (entrance.compare("b") == 0) {
+                        car.direction = p.y - mean_movement;
                     }
 
                     cout << "CAR: " << car.id <<
-                            " DIRECTION: " << direction <<
+                            " DIRECTION: " << car.direction <<
                             " COUNTED: " << car.counted << endl;
 
                     if (!car.counted) {
-                        if (axis.compare("x") == 0) {
+                        if (entrance.compare("l") == 0) {
                             // direction is "positive" (RIGHT) and centroid right of vertical boundary line
-                            if (direction > 0) {
+                            if (car.direction > 0) {
                                 cout << "RIGHT INCREMENT" << endl;
                                 total_in++;
                                 cout << "TOTAL IN: " << total_in << endl;
-                                car.counted = true;
-                            } else if (direction < 0) {
-                                cout << "LEFT INCREMENT" << endl;
-                                cout << "TOTAL OUT: " << total_out << endl;
-                                total_out++;
                                 car.counted = true;
                             } else {
                                 cout << "CAR: " << car.id << " NOT MOVING" << endl;
                             }
                         }
 
-                        if (axis.compare("y") == 0) {
+                        if (entrance.compare("b") == 0) {
                             // direction is "negative" (UP) and centroid above horizontal boundary line
-                            if (direction < 0) {
+                            if (car.direction < 0) {
                                 cout << "UP INCREMENT" << endl;
                                 total_in++;
                                 cout << "TOTAL IN: " << total_in << endl;
                                 car.counted = true;
-                            } else if (direction > 0) {
-                                cout << "DOWN INCREMENT" << endl;
-                                total_out++;
-                                cout << "TOTAL OUT: " << total_out << endl;
-                                car.counted = true;
                             } else {
-                                cout << "CENTROID: " << car.id << " NOT MOVING" << " GONE: " << gone << endl;
+                                cout << "CAR: " << car.id << " NOT MOVING" << endl;
                             }
                         }
                     }
                 }
                 // update tracked car
                 tracked_cars[id] = car;
+            }
+
+            for (map<int, Car>::iterator it = tracked_cars.begin(); it != tracked_cars.end(); ++it) {
+                if (!it->second.counted && it->second.gone) {
+                    if (entrance.compare("l") == 0) {
+                        if (it->second.direction < 0) {
+                            cout << "LEFT INCREMENT" << endl;
+                            total_out++;
+                            cout << "TOTAL OUT: " << total_out << endl;
+                            tracked_cars.erase(it->second.id);
+                        }
+                    }
+
+                    if (entrance.compare("b") == 0) {
+                        if (it->second.direction > 0) {
+                            cout << "DOWN INCREMENT" << endl;
+                            total_out++;
+                            cout << "TOTAL OUT: " << total_out << endl;
+                            tracked_cars.erase(it->second.id);
+                        }
+                    }
+                }
             }
 
             updateInfo();
@@ -585,7 +604,7 @@ int main(int argc, char** argv)
     carconf = parser.get<float>("carconf");
     backendId = parser.get<int>("backend");
     targetId = parser.get<int>("target");
-    axis = parser.get<string>("axis");
+    entrance = parser.get<string>("entrance");
     rate = parser.get<int>("rate");
 
     // connect MQTT messaging

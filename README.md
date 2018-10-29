@@ -101,14 +101,18 @@ To run the application with the needed models using the webcam:
     ./monitor -m=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/vehicle-detection-adas-0002/FP32/vehicle-detection-adas-0002.bin -c=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/vehicle-detection-adas-0002/FP32/vehicle-detection-adas-0002.xml
 ```
 
-To control the monitoring line to be used for counting of entry/exit from the parking area, use the `-axis` and `-bline` flags, like this:
+To control the position of the parking entrance/exit use the `-entrance, -e` flag, like this:
 ```
-    ./monitor -m=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/vehicle-detection-adas-0002/FP32/vehicle-detection-adas-0002.bin -c=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/vehicle-detection-adas-0002/FP32/vehicle-detection-adas-0002.xml -axis=y -bline=350
+    ./monitor -m=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/vehicle-detection-adas-0002/FP32/vehicle-detection-adas-0002.bin -c=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/vehicle-detection-adas-0002/FP32/vehicle-detection-adas-0002.xml -e="b"
 ```
 
-The `-axis` flag controls which axis is to be used for counting, either `"x"` for counting going left/right, or `"y"` for counting up/down.
+The `-entrance` flag controls which part of the video stream frame is to be used for counting the cars:
+* `"b"`: bottom
+* `"l"`: left
+* `"r"`: right
+* `"t"`: top
 
-The  `-bline` flag controls the baseline positioning. For example `-bline=100` will place the baseline 100 pixels counting from either the left side if `-axis=x` or the top if `-axis=y`.
+To control the car detection DNN confidence level use the `-carconf, -cc` flag eg. `-carconf=0.4` will track all cars whose detection confidence level is higher than `40%`.
 
 ### Hardware acceleration
 
@@ -137,7 +141,7 @@ There are several videos available to use as sample videos to show the capabilit
 To then execute the code using one of these sample videos, run the following commands from the `available-parking-tracker-cpp` directory:
 ```
     cd build
-    ./monitor -m=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/vehicle-detection-adas-0002/FP32/vehicle-detection-adas-0002.bin -c=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/vehicle-detection-adas-0002/FP32/vehicle-detection-adas-0002.xml -i=../resources/car-detection.mp4
+    ./monitor -m=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/vehicle-detection-adas-0002/FP32/vehicle-detection-adas-0002.bin -c=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/vehicle-detection-adas-0002/FP32/vehicle-detection-adas-0002.xml -i=../resources/car-detection.mp4 -e="b" -cc=0.4
 ```
 
 ### Machine to machine messaging with MQTT
