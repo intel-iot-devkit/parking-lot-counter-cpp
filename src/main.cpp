@@ -165,8 +165,7 @@ Mat nextImageAvailable() {
 // addImage adds an image to the queue in a thread-safe way
 void addImage(Mat img) {
     m.lock();
-    //if (nextImage.size() < 60) {
-    if (nextImage.empty()) {
+    if (nextImage.size() < 120) {
         nextImage.push(img);
     }
     m.unlock();
@@ -261,14 +260,14 @@ pair<int, double> closestCentroid(const Point p, const map<int, Centroid> centro
          int _id = it->second.id;
          Point _p = it->second.p;
 
-         if (entrance.compare("l") == 0) {
+         if (entrance.compare("l") == 0 || entrance.compare("r")) {
              if ((_p.y < (p.y-20)) || (_p.y > (p.y+20))){
                  continue;
              }
          }
 
          // Only consider centroids within small pixel interval
-         if (entrance.compare("b") == 0) {
+         if (entrance.compare("b") == 0 || entrance.compare("t") == 0) {
              if (_p.x < (p.x-20) || _p.x > (p.x+20)){
                  continue;
              }
@@ -401,10 +400,10 @@ void frameRunner() {
 
             for (size_t i = 0; i < result.total(); i += 7)
             {
+                int label = (int)data[i + 1];
                 float confidence = data[i + 2];
-                if (confidence > carconf)
+                if (label == 1 && confidence > carconf)
                 {
-                    int label = (int)data[i + 1];
                     int left = (int)(data[i + 3] * frame.cols);
                     int top = (int)(data[i + 4] * frame.rows);
                     int right = (int)(data[i + 5] * frame.cols);
@@ -493,20 +492,20 @@ void frameRunner() {
                     // calculate mean from car (centroid) trajectory
                     int mean_movement = 0;
                     for(vector<Point>::size_type i = 0; i != car.traject.size(); i++) {
-                        if (entrance.compare("l") == 0) {
+                        if (entrance.compare("l") == 0 || entrance.compare("r") == 0) {
                             mean_movement = mean_movement + car.traject[i].x;
                         }
-                        if (entrance.compare("b") == 0) {
+                        if (entrance.compare("b") == 0 || entrance.compare("t") == 0) {
                             mean_movement = mean_movement + car.traject[i].y;
                         }
                     }
                     mean_movement = mean_movement / car.traject.size();
                     car.traject.push_back(p);
 
-                    if (entrance.compare("l") == 0) {
+                    if (entrance.compare("l") == 0 || entrance.compare("r") == 0) {
                         car.direction = p.x - mean_movement;
                     }
-                    if (entrance.compare("b") == 0) {
+                    if (entrance.compare("b") == 0 || entrance.compare("t") == 0) {
                         car.direction = p.y - mean_movement;
                     }
 
@@ -515,7 +514,7 @@ void frameRunner() {
                             " COUNTED: " << car.counted << endl;
 
                     if (!car.counted) {
-                        if (entrance.compare("l") == 0) {
+                        if (entrance.compare("l") == 0 || entrance.compare("t") == 0) {
                             // direction is "positive" (RIGHT) and centroid right of vertical boundary line
                             if (car.direction > 0) {
                                 cout << "RIGHT INCREMENT" << endl;
@@ -527,7 +526,7 @@ void frameRunner() {
                             }
                         }
 
-                        if (entrance.compare("b") == 0) {
+                        if (entrance.compare("b") == 0 || entrance.compare("r") == 0) {
                             // direction is "negative" (UP) and centroid above horizontal boundary line
                             if (car.direction < 0) {
                                 cout << "UP INCREMENT" << endl;
@@ -546,7 +545,7 @@ void frameRunner() {
 
             for (map<int, Car>::iterator it = tracked_cars.begin(); it != tracked_cars.end(); ++it) {
                 if (!it->second.counted && it->second.gone) {
-                    if (entrance.compare("l") == 0) {
+                    if (entrance.compare("l") == 0 || entrance.compare("t") == 0) {
                         if (it->second.direction < 0) {
                             cout << "LEFT INCREMENT" << endl;
                             total_out++;
@@ -555,7 +554,7 @@ void frameRunner() {
                         }
                     }
 
-                    if (entrance.compare("b") == 0) {
+                    if (entrance.compare("b") == 0 || entrance.compare("r") == 0) {
                         if (it->second.direction > 0) {
                             cout << "DOWN INCREMENT" << endl;
                             total_out++;
