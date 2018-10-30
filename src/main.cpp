@@ -113,6 +113,7 @@ struct ParkingInfo
     int total_out;
     // TODO:remove centroids points
     map<int, Centroid> centroids;
+    vector<Rect> detections;
 };
 // currentInfo contains the latest ParkingInfo as tracked by the application
 ParkingInfo currentInfo;
@@ -164,6 +165,7 @@ Mat nextImageAvailable() {
 // addImage adds an image to the queue in a thread-safe way
 void addImage(Mat img) {
     m.lock();
+    //if (nextImage.size() < 60) {
     if (nextImage.empty()) {
         nextImage.push(img);
     }
@@ -181,12 +183,13 @@ ParkingInfo getCurrentInfo() {
 }
 
 // updateInfo uppdates the current ParkingInfo for the application to the latest detected values
-void updateInfo() {
+void updateInfo(vector<Rect> detections) {
     m2.lock();
     // TODO: do something clever with out and in counts
     currentInfo.total_in = total_in;
     currentInfo.total_out = total_out;
     currentInfo.centroids = centroids;
+    currentInfo.detections = detections;
     m2.unlock();
 }
 
@@ -416,11 +419,14 @@ void frameRunner() {
             cout << "DETECTED FRAME CARS: " << frame_cars.size() << endl;
 
             vector<Point> frame_centroids;
+            vector<Rect>  car_detections;
             for(auto const& fc: frame_cars) {
                 // make sure the car rect is completely inside the main Mat
                 if ((fc & Rect(0, 0, next.cols, next.rows)) != fc) {
                     continue;
                 }
+
+                cout << "DETECTION: " << fc << endl;
 
                 // detected rectangle dimensions
                 int width = fc.width;
@@ -429,6 +435,7 @@ void frameRunner() {
                 // TODO: Sometimes the detected rectangle stretches way over the actual car
                 // so we need clip the sizes of the rectangle to avoid skewing the centroid position
                 int w_clip = 200;
+                //int w_clip = 300;
                 if (width > w_clip) {
                     if ((fc.x + w_clip) < frame.cols) {
                         width = w_clip;
@@ -452,6 +459,7 @@ void frameRunner() {
 
                 // append detected centroid and draw rectangle
                 frame_centroids.push_back(Point(x,y));
+                car_detections.push_back(Rect(fc.x, fc.y, width, height));
             }
 
             cout << "DETECTED FRAME CENTROIDS: " << frame_centroids.size() << endl;
@@ -558,7 +566,7 @@ void frameRunner() {
                 }
             }
 
-            updateInfo();
+            updateInfo(car_detections);
             savePerformanceInfo();
         }
     }
@@ -670,6 +678,9 @@ int main(int argc, char** argv)
             label = format("[%d, %d]", it->second.p.x, it->second.p.y);
             putText(frame, label, Point(it->second.p.x+5, it->second.p.y),
                             FONT_HERSHEY_SIMPLEX, 0.5, CV_RGB(0, 255, 0));
+        }
+        for(auto const& r: info.detections) {
+            rectangle(frame, r, CV_RGB(0, 255, 0), 2);
         }
 
         imshow("Parking Tracker", frame);
