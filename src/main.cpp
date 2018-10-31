@@ -99,7 +99,8 @@ map<int, Centroid> centroids;
 
 // max_frames_gone and max_distance are thresholds used when marking car as gone
 int max_frames_gone = 30;
-int max_distance = 350;
+//int max_distance = 350;
+int max_distance = 250;
 
 // total cars in and out of the parking
 int total_in = 0;
@@ -164,7 +165,7 @@ Mat nextImageAvailable() {
 // addImage adds an image to the queue in a thread-safe way
 void addImage(Mat img) {
     m.lock();
-    if (nextImage.size() < 120) {
+    if (nextImage.size() < 300) {
         nextImage.push(img);
     }
     m.unlock();
@@ -345,6 +346,7 @@ void updateCentroids(vector<Point> points) {
                 cout << "SKIPPING CENTROID UPDATE: CLOSEST CENTROID TOO FAR" << endl;
                 continue;
             }
+            // TODO: what if points[0] is close to points[1]?
             // update position of the closest centroid
             centroids[closest.first].p = points[i];
             centroids[closest.first].gone_count = 0;
@@ -672,11 +674,11 @@ int main(int argc, char** argv)
 
         // print Inference Engine performance info
         string label = getCurrentPerf();
-        putText(frame, label, Point(0, 25), FONT_HERSHEY_SIMPLEX, 0.5, CV_RGB(0, 0, 255));
+        putText(frame, label, Point(0, 25), FONT_HERSHEY_SIMPLEX, 0.5, CV_RGB(0, 0, 255), 2);
 
         ParkingInfo info = getCurrentInfo();
         label = format("Cars In: %d Cars Out: %d", info.total_in, info.total_out);
-        putText(frame, label, Point(0, 45), FONT_HERSHEY_SIMPLEX, 0.5, CV_RGB(0, 0, 255));
+        putText(frame, label, Point(0, 45), FONT_HERSHEY_SIMPLEX, 0.5, CV_RGB(0, 0, 255), 2);
         // TODO: draws centroids
         for (map<int, Centroid>::const_iterator it = info.centroids.begin(); it != info.centroids.end(); ++it) {
             circle(frame, it->second.p, 5.0, CV_RGB(0, 255, 0), 2);
