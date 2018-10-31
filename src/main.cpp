@@ -93,7 +93,6 @@ struct Centroid {
     int id;
     Point p;
     int gone_count;
-    //bool gone;
 };
 // centroids maps centroids by their ids
 map<int, Centroid> centroids;
@@ -260,13 +259,14 @@ pair<int, double> closestCentroid(const Point p, const map<int, Centroid> centro
          int _id = it->second.id;
          Point _p = it->second.p;
 
+         // If the movement is horizontal, only consider centroids with some small Y coordinate fluctuation
          if (entrance.compare("l") == 0 || entrance.compare("r")) {
              if ((_p.y < (p.y-20)) || (_p.y > (p.y+20))){
                  continue;
              }
          }
 
-         // Only consider centroids within small pixel interval
+         // If the movement is vertical, only consider centroids with some small X coordinate fluctuation
          if (entrance.compare("b") == 0 || entrance.compare("t") == 0) {
              if (_p.x < (p.x-20) || _p.x > (p.x+20)){
                  continue;
@@ -292,7 +292,6 @@ void addCentroid(Point p) {
     c.id = id;
     c.p = p;
     c.gone_count = 0;
-    //c.gone = false;
 
     centroids[c.id] = c;
     id++;
@@ -318,7 +317,6 @@ void updateCentroids(vector<Point> points) {
             cout << "NO_POINTS_CENTROID_GONE_COUNT: " << it->second.gone_count << endl;
             if (it->second.gone_count > max_frames_gone) {
                 cout << "NO_POINTS_CENTROID_GONE: " << it->second.id << endl;
-                //it->second.gone = true;
                 removeCentroid(it->second.id);
             }
         }
@@ -349,7 +347,7 @@ void updateCentroids(vector<Point> points) {
             // update position of the closest centroid
             centroids[closest.first].p = points[i];
             centroids[closest.first].gone_count = 0;
-            //centroids[closest.first].gone = false;
+            // add centroids to checked points
             checked_points.insert(i);
             checked_centroids.insert(closest.first);
         }
@@ -362,7 +360,6 @@ void updateCentroids(vector<Point> points) {
                 it->second.gone_count++;
                 if (it->second.gone_count > max_frames_gone) {
                     cout << "CHECKED_CENTROID_GONE: " << it->second.id << endl;
-                    //it->second.gone = true;
                     removeCentroid(it->second.id);
                 }
             }
@@ -431,6 +428,11 @@ void frameRunner() {
                 int width = fc.width;
                 int height = fc.height;
 
+                if (width < 70 || height < 70) {
+                    cout << "DETECTION TOO SMALL. SKIPPING." << endl;
+                    continue;
+                }
+
                 // TODO: Sometimes the detected rectangle stretches way over the actual car
                 // so we need clip the sizes of the rectangle to avoid skewing the centroid position
                 int w_clip = 200;
@@ -477,7 +479,6 @@ void frameRunner() {
             for (map<int, Centroid>::iterator it = centroids.begin(); it != centroids.end(); ++it) {
                 int id = it->second.id;
                 Point p = it->second.p;
-                //bool gone = it->second.gone;
 
                 Car car;
                 if (tracked_cars.find(id) == tracked_cars.end()){
@@ -489,12 +490,14 @@ void frameRunner() {
                     car.direction = 0;
                 } else {
                     car = tracked_cars[id];
-                    // calculate mean from car (centroid) trajectory
+                    // calculate mean movement from car trajectory
                     int mean_movement = 0;
                     for(vector<Point>::size_type i = 0; i != car.traject.size(); i++) {
+                        // when movement is horizontal only consider trajectory along X axis
                         if (entrance.compare("l") == 0 || entrance.compare("r") == 0) {
                             mean_movement = mean_movement + car.traject[i].x;
                         }
+                        // when movement is vertical only consider trajectory along Y axis
                         if (entrance.compare("b") == 0 || entrance.compare("t") == 0) {
                             mean_movement = mean_movement + car.traject[i].y;
                         }
@@ -502,39 +505,40 @@ void frameRunner() {
                     mean_movement = mean_movement / car.traject.size();
                     car.traject.push_back(p);
 
+                    // when movement is horizontal only consider trajectory along X axis
                     if (entrance.compare("l") == 0 || entrance.compare("r") == 0) {
                         car.direction = p.x - mean_movement;
                     }
+                    // when movement is vertical only consider trajectory along Y axis
                     if (entrance.compare("b") == 0 || entrance.compare("t") == 0) {
                         car.direction = p.y - mean_movement;
                     }
 
                     cout << "CAR: " << car.id <<
                             " DIRECTION: " << car.direction <<
-                            " COUNTED: " << car.counted << endl;
+                            " COUNTED: " << car.counted  <<
+                            " GONE: " << car.gone << endl;
 
-                    if (!car.counted) {
-                        if (entrance.compare("l") == 0 || entrance.compare("t") == 0) {
-                            // direction is "positive" (RIGHT) and centroid right of vertical boundary line
+                    if (!car.counted && !car.gone) {
+                        if (entrance.compare("t") == 0 || entrance.compare("l") == 0) {
+                            cout << "ENTRANCE: " << entrance << endl;
+                            // direction is "positive" i.e. movement along Y/X axis increases motion coordinates
                             if (car.direction > 0) {
-                                cout << "RIGHT INCREMENT" << endl;
+                                cout << "ENTER BOTTOM/RIGHT INCREMENT" << endl;
                                 total_in++;
                                 cout << "TOTAL IN: " << total_in << endl;
                                 car.counted = true;
-                            } else {
-                                cout << "CAR: " << car.id << " NOT MOVING" << endl;
                             }
                         }
 
                         if (entrance.compare("b") == 0 || entrance.compare("r") == 0) {
-                            // direction is "negative" (UP) and centroid above horizontal boundary line
+                            cout << "ENTRANCE: " << entrance << endl;
+                            // direction is "negative" i.e. movement along Y/X axis decreases motion coordinates
                             if (car.direction < 0) {
-                                cout << "UP INCREMENT" << endl;
+                                cout << "ENTER TOP/LEFT INCREMENT" << endl;
                                 total_in++;
                                 cout << "TOTAL IN: " << total_in << endl;
                                 car.counted = true;
-                            } else {
-                                cout << "CAR: " << car.id << " NOT MOVING" << endl;
                             }
                         }
                     }
@@ -545,20 +549,22 @@ void frameRunner() {
 
             for (map<int, Car>::iterator it = tracked_cars.begin(); it != tracked_cars.end(); ++it) {
                 if (!it->second.counted && it->second.gone) {
-                    if (entrance.compare("l") == 0 || entrance.compare("t") == 0) {
+                    if (entrance.compare("t") == 0 || entrance.compare("l") == 0) {
                         if (it->second.direction < 0) {
-                            cout << "LEFT INCREMENT" << endl;
+                            cout << "EXIT TOP/LEFT INCREMENT" << endl;
                             total_out++;
                             cout << "TOTAL OUT: " << total_out << endl;
+                            cout << "REMOVING CAR: " << it->second.id << endl;
                             tracked_cars.erase(it->second.id);
                         }
                     }
 
                     if (entrance.compare("b") == 0 || entrance.compare("r") == 0) {
                         if (it->second.direction > 0) {
-                            cout << "DOWN INCREMENT" << endl;
+                            cout << "EXIT BOTTOM/RIGHT INCREMENT" << endl;
                             total_out++;
                             cout << "TOTAL OUT: " << total_out << endl;
+                            cout << "REMOVING CAR: " << it->second.id << endl;
                             tracked_cars.erase(it->second.id);
                         }
                     }
@@ -666,11 +672,11 @@ int main(int argc, char** argv)
 
         // print Inference Engine performance info
         string label = getCurrentPerf();
-        putText(frame, label, Point(0, 15), FONT_HERSHEY_SIMPLEX, 0.5, CV_RGB(0, 0, 255));
+        putText(frame, label, Point(0, 25), FONT_HERSHEY_SIMPLEX, 0.5, CV_RGB(0, 0, 255));
 
         ParkingInfo info = getCurrentInfo();
         label = format("Cars In: %d Cars Out: %d", info.total_in, info.total_out);
-        putText(frame, label, Point(0, 40), FONT_HERSHEY_SIMPLEX, 0.5, CV_RGB(0, 0, 255));
+        putText(frame, label, Point(0, 45), FONT_HERSHEY_SIMPLEX, 0.5, CV_RGB(0, 0, 255));
         // TODO: draws centroids
         for (map<int, Centroid>::const_iterator it = info.centroids.begin(); it != info.centroids.end(); ++it) {
             circle(frame, it->second.p, 5.0, CV_RGB(0, 255, 0), 2);
