@@ -99,7 +99,7 @@ map<int, Centroid> centroids;
 
 // max_frames_gone and max_distance are thresholds used when marking car as gone
 int max_frames_gone = 30;
-int max_distance = 200;
+int max_distance = 350;
 
 // total cars in and out of the parking
 int total_in = 0;
@@ -338,6 +338,7 @@ void updateCentroids(vector<Point> points) {
             pair<int, double> closest = closestCentroid(points[i], centroids);
             cout << "POINT: " << points[i] <<
                     " CLOSEST CENTROID: " << closest.first <<
+                    " " << centroids[closest.first].p <<
                     " DISTANCE: " << closest.second << endl;
 
             if (closest.second > max_distance) {
@@ -429,7 +430,7 @@ void frameRunner() {
                 int height = fc.height;
 
                 if (width < 70 || height < 70) {
-                    cout << "DETECTION TOO SMALL. SKIPPING." << endl;
+                    cout << "DETECTION " << fc << " TOO SMALL. SKIPPING." << endl;
                     continue;
                 }
 
@@ -465,7 +466,6 @@ void frameRunner() {
 
             cout << "DETECTED FRAME CENTROIDS: " << frame_centroids.size() << endl;
             cout << " " << frame_centroids << endl;
-            //cout << "DETECTED CENTROIDS: " << frame_centroids << endl;
 
             // update tracked centroids using the centroids detected in the frame
             updateCentroids(frame_centroids);

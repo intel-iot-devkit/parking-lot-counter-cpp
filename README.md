@@ -10,9 +10,9 @@
 
 ## Introduction
 
-This parking space monitor is one of a series of reference implementations for Computer Vision (CV) using the OpenVINO™ toolkit. This application is designed for a parking space area mounted camera which monitors available parking space by tracking the counts of the vehicles entering and leaving the parking space area.
+This parking space monitor is one of a series of reference implementations for Computer Vision (CV) using the OpenVINO™ toolkit. This application is designed for a parking lot area mounted camera which monitors available parking space by tracking the counts of the vehicles entering and leaving the parking lot area.
 
-This example is intended to demonstrate how to use CV to monitor parking spaces in dedicated parking area.
+This example is intended to demonstrate how to use CV to monitor parking space in dedicated parking area.
 
 ## Requirements
 
@@ -46,7 +46,7 @@ The DNN models used in this application are Intel® optimized models that are pa
 
 You can find them here:
 
-- `/opt/intel/computer_vision_sdk/deployment_tools/intel_models/vehicle-detection-adas-0002
+- `/opt/intel/computer_vision_sdk/deployment_tools/intel_models/pedestrian-and-vehicle-detector-adas-0001
 `
 
 ![Code organization](./images/arch3.png)
@@ -54,7 +54,7 @@ You can find them here:
 The program creates three threads for concurrency:
 
 - main thread that performs the video i/o
-- worker thread that processes video frames using the deep neural networks
+- worker thread that processes video frames using DNNs
 - worker thread that publishes any MQTT messages
 
 ## Setting the build environment
@@ -98,21 +98,21 @@ To see a list of the various options:
 
 To run the application with the needed models using the webcam:
 ```
-    ./monitor -m=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/vehicle-detection-adas-0002/FP32/vehicle-detection-adas-0002.bin -c=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/vehicle-detection-adas-0002/FP32/vehicle-detection-adas-0002.xml
+    ./monitor -m=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/pedestrian-and-vehicle-detector-adas-0001/FP32/pedestrian-and-vehicle-detector-adas-0001.bin -c=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/pedestrian-and-vehicle-detector-adas-0001/FP32/pedestrian-and-vehicle-detector-adas-0001.xml
 ```
 
-To control the position of the parking entrance/exit use the `-entrance, -e` flag, like this:
+To control the position of the parking entrance/exit use the `-entrance, -e` command line flag, like this:
 ```
-    ./monitor -m=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/vehicle-detection-adas-0002/FP32/vehicle-detection-adas-0002.bin -c=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/vehicle-detection-adas-0002/FP32/vehicle-detection-adas-0002.xml -e="b"
+    ./monitor -m=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/pedestrian-and-vehicle-detector-adas-0001/FP32/pedestrian-and-vehicle-detector-adas-0001.bin -c=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/pedestrian-and-vehicle-detector-adas-0001/FP32/pedestrian-and-vehicle-detector-adas-0001.xml -e="b"
 ```
 
-The `-entrance` flag controls which part of the video stream frame is to be used for counting the cars:
+The `-entrance` flag controls which part of the video stream frame is to be used for counting the cars entering and exiting the parking lot:
 * `"b"`: bottom
 * `"l"`: left
 * `"r"`: right
 * `"t"`: top
 
-To control the car detection DNN confidence level use the `-carconf, -cc` flag eg. `-carconf=0.4` will track all cars whose detection confidence level is higher than `40%`.
+To control the car detection DNN confidence level use the `-carconf, -cc` flag eg. `-carconf=0.6` will track all cars whose DNN detection confidence level is higher than `60%`.
 
 ### Hardware acceleration
 
@@ -120,12 +120,12 @@ This application can take advantage of the hardware acceleration in the OpenVINO
 
 For example, to use the OpenVINO™ toolkit backend with the GPU in 32-bit mode:
 ```
-    ./monitor -m=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/vehicle-detection-adas-0002/FP32/vehicle-detection-adas-0002.bin -c=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/vehicle-detection-adas-0002/FP32/vehicle-detection-adas-0002.xml -b=2 -t=1
+    ./monitor -m=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/pedestrian-and-vehicle-detector-adas-0001/FP32/pedestrian-and-vehicle-detector-adas-0001.bin -c=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/pedestrian-and-vehicle-detector-adas-0001/FP32/pedestrian-and-vehicle-detector-adas-0001.xml -b=2 -t=1
 ```
 
 To run the code using 16-bit floats, you have to both set the `-t` flag to use the GPU in 16-bit mode, as well as use the FP16 version of the Intel® models:
 ```
-    ./monitor -m=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/vehicle-detection-adas-0002/FP16/vehicle-detection-adas-0002.bin -c=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/vehicle-detection-adas-0002/FP16/vehicle-detection-adas-0002.xml -b=2 -t=2
+    ./monitor -m=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/pedestrian-and-vehicle-detector-adas-0001/FP16/pedestrian-and-vehicle-detector-adas-0001.bin -c=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/pedestrian-and-vehicle-detector-adas-0001/FP16/pedestrian-and-vehicle-detector-adas-0001.xml -b=2 -t=2
 ```
 
 ## Sample videos
@@ -141,8 +141,10 @@ There are several videos available to use as sample videos to show the capabilit
 To then execute the code using one of these sample videos, run the following commands from the `available-parking-tracker-cpp` directory:
 ```
     cd build
-    ./monitor -m=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/vehicle-detection-adas-0002/FP32/vehicle-detection-adas-0002.bin -c=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/vehicle-detection-adas-0002/FP32/vehicle-detection-adas-0002.xml -i=../resources/car-detection.mp4 -e="b" -cc=0.4
+    ./monitor -m=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/pedestrian-and-vehicle-detector-adas-0001/FP32/pedestrian-and-vehicle-detector-adas-0001.bin -c=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/pedestrian-and-vehicle-detector-adas-0001/FP32/pedestrian-and-vehicle-detector-adas-0001.xml -i=../resources/car-detection.mp4 -cc=0.7 -e="b"
 ```
+
+The above command will use the bottom edge of the video stream frame as parking lot entrance and will count the cars driving up the frame as the cars entering the parking lot and the cars driving down the frame as the cars leaving the parking lot. The application displays in real time how many cars have entered and exited the partking lot.
 
 ### Machine to machine messaging with MQTT
 
