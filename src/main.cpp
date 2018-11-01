@@ -112,8 +112,6 @@ struct ParkingInfo
     int total_in;
     int total_out;
     map<int, Centroid> centroids;
-    // TODO:remove rectangle detections
-    vector<Rect> detections;
 };
 // currentInfo contains the latest ParkingInfo as tracked by the application
 ParkingInfo currentInfo;
@@ -182,13 +180,12 @@ ParkingInfo getCurrentInfo() {
 }
 
 // updateInfo uppdates the current ParkingInfo for the application to the latest detected values
-void updateInfo(vector<Rect> detections) {
+//void updateInfo(vector<Rect> detections) {
+void updateInfo() {
     m2.lock();
     currentInfo.total_in = total_in;
     currentInfo.total_out = total_out;
     currentInfo.centroids = centroids;
-    // TODO: we should remove rectangle detections
-    currentInfo.detections = detections;
     m2.unlock();
 }
 
@@ -331,7 +328,7 @@ void updateCentroids(vector<Point> points) {
 
             // if the distance from the point to the closest centroid is too large, dont associate them together
             // also avoid associating with centroid which alread has a different association
-            if (closest.second > max_distance || (checked_points.find(closest.first) != checked_points.end())) {
+            //if (closest.second > max_distance || (checked_points.find(closest.first) != checked_points.end())) {
                 continue;
             }
             // update position of the closest centroid
@@ -532,7 +529,7 @@ void frameRunner() {
                 }
             }
 
-            updateInfo(car_detections);
+            updateInfo();
             savePerformanceInfo();
         }
     }
@@ -633,21 +630,17 @@ int main(int argc, char** argv)
 
         // print Inference Engine performance info
         string label = getCurrentPerf();
-        putText(frame, label, Point(0, 25), FONT_HERSHEY_SIMPLEX, 0.5, CV_RGB(0, 0, 255), 2);
+        putText(frame, label, Point(0, 25), FONT_HERSHEY_SIMPLEX, 0.5, CV_RGB(255, 255, 255));
 
         ParkingInfo info = getCurrentInfo();
         label = format("Cars In: %d Cars Out: %d", info.total_in, info.total_out);
-        putText(frame, label, Point(0, 45), FONT_HERSHEY_SIMPLEX, 0.5, CV_RGB(0, 0, 255), 2);
+        putText(frame, label, Point(0, 45), FONT_HERSHEY_SIMPLEX, 0.5, CV_RGB(255, 255, 255));
         // draw car centroids
         for (map<int, Centroid>::const_iterator it = info.centroids.begin(); it != info.centroids.end(); ++it) {
             circle(frame, it->second.p, 5.0, CV_RGB(0, 255, 0), 2);
             label = format("[%d, %d]", it->second.p.x, it->second.p.y);
             putText(frame, label, Point(it->second.p.x+5, it->second.p.y),
                             FONT_HERSHEY_SIMPLEX, 0.5, CV_RGB(0, 255, 0));
-        }
-        // TODO: we should not draw recetnagles
-        for(auto const& r: info.detections) {
-            rectangle(frame, r, CV_RGB(0, 255, 0), 2);
         }
 
         imshow("Parking Tracker", frame);
