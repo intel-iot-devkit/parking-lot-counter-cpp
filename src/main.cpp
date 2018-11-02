@@ -76,8 +76,8 @@ static volatile sig_atomic_t sig_caught = 0;
 const string topic = "parking/counter";
 
 // max_frames_gone and max_distance are thresholds used when marking tracked car as gone
-int max_frames_gone = 30;
-int max_distance = 250;
+int max_frames_gone = 20;
+int max_distance = 300;
 
 // Car contains information about trajectory of tracked car
 struct Car {
@@ -403,6 +403,80 @@ int carDirection(Point p, int movement, string entrance) {
     return direction;
 }
 
+// centroids2Cars iterates through all centroids and associates them with tracked_cars
+void centroids2Cars() {
+    // iterate through updated centroids and update tracked car counts
+    for (map<int, Centroid>::iterator it = centroids.begin(); it != centroids.end(); ++it) {
+        int id = it->second.id;
+        Point p = it->second.p;
+
+        Car car;
+        // if the centroid is not tracked yet, add it to tracked_cars
+        if (tracked_cars.find(id) == tracked_cars.end()) {
+            car.id = id;
+            car.traject.push_back(p);
+            car.counted = false;
+            car.gone = false;
+            car.direction = 0;
+        } else {
+            car = tracked_cars[id];
+            // calculate mean movement from car trajectory
+            int movement = carMovement(car.traject, entrance);
+            // add the centroid to the car trajectory
+            car.traject.push_back(p);
+            // calculate car direction based on trajectory and current position
+            car.direction = carDirection(p, movement, entrance);
+        }
+        tracked_cars[id] = car;
+    }
+}
+
+// updateCarTotals iterates through all tracked cars and updates total counts both in and out of the parking
+void updateCarTotals() {
+    for (map<int, Car>::iterator it = tracked_cars.begin(); it != tracked_cars.end(); ++it) {
+        int id        = it->second.id;
+        int direction = it->second.direction;
+        bool gone     = it->second.gone;
+        bool counted  = it->second.counted;
+
+        if (!counted) {
+            if (!gone){
+                if (entrance.compare("t") == 0 || entrance.compare("l") == 0) {
+                    // direction is "positive" i.e. movement along Y/X axis goes up
+                    if (direction > 0) {
+                        total_in++;
+                        it->second.counted = true;
+                    }
+                }
+
+                if (entrance.compare("b") == 0 || entrance.compare("r") == 0) {
+                    // direction is "negative" i.e. movement along Y/X axis goes down
+                    if (direction < 0) {
+                        total_in++;
+                        it->second.counted = true;
+                    }
+                }
+            } else {
+                if (entrance.compare("t") == 0 || entrance.compare("l") == 0) {
+                    // "negative" direcion i.e. car centroid coords along movement axis go down
+                    if (direction < 0) {
+                        total_out++;
+                        tracked_cars.erase(id);
+                    }
+                }
+
+                if (entrance.compare("b") == 0 || entrance.compare("r") == 0) {
+                    // "positive" direcion i.e. car centroid coords along movement axis go up
+                    if (direction > 0) {
+                        total_out++;
+                        tracked_cars.erase(id);
+                    }
+                }
+            }
+        }
+    }
+}
+
 // Function called by worker thread to process the next available video frame.
 void frameRunner() {
     while (keepRunning.load()) {
@@ -484,71 +558,11 @@ void frameRunner() {
             // update tracked centroids using the centroids detected in the frame
             updateCentroids(frame_centroids);
 
-            // iterate through updated centroids and update tracked car counts
-            for (map<int, Centroid>::iterator it = centroids.begin(); it != centroids.end(); ++it) {
-                int id = it->second.id;
-                Point p = it->second.p;
-
-                Car car;
-                // if the centroid is not tracked yet, add it to tracked_cars
-                if (tracked_cars.find(id) == tracked_cars.end()){
-                    car.id = id;
-                    car.traject.push_back(p);
-                    car.counted = false;
-                    car.gone = false;
-                    car.direction = 0;
-                } else {
-                    car = tracked_cars[id];
-                    // calculate mean movement from car trajectory
-                    int movement = carMovement(car.traject, entrance);
-                    // add the centroid to the car trajectory
-                    car.traject.push_back(p);
-                    // calculate car direction based on trajectory and current position
-                    car.direction = carDirection(p, movement, entrance);
-
-                    if (!car.counted && !car.gone) {
-                        if (entrance.compare("t") == 0 || entrance.compare("l") == 0) {
-                            // direction is "positive" i.e. movement along Y/X axis increases motion coordinates
-                            if (car.direction > 0) {
-                                total_in++;
-                                car.counted = true;
-                            }
-                        }
-
-                        if (entrance.compare("b") == 0 || entrance.compare("r") == 0) {
-                            // direction is "negative" i.e. movement along Y/X axis decreases motion coordinates
-                            if (car.direction < 0) {
-                                total_in++;
-                                car.counted = true;
-                            }
-                        }
-                    }
-                }
-                // update tracked car
-                tracked_cars[id] = car;
-            }
-
-            // iterate through all the tracked cars and if theyre now gone increment OUT counter
-            for (map<int, Car>::iterator it = tracked_cars.begin(); it != tracked_cars.end(); ++it) {
-                if (!it->second.counted && it->second.gone) {
-                    if (entrance.compare("t") == 0 || entrance.compare("l") == 0) {
-                        // "negative" direcion i.e. car centroid coords along movement axis were decreasing
-                        if (it->second.direction < 0) {
-                            total_out++;
-                            tracked_cars.erase(it->second.id);
-                        }
-                    }
-
-                    if (entrance.compare("b") == 0 || entrance.compare("r") == 0) {
-                        // "positive" direcion i.e. car centroid coords along movement axis were increasing
-                        if (it->second.direction > 0) {
-                            total_out++;
-                            tracked_cars.erase(it->second.id);
-                        }
-                    }
-                }
-            }
-
+            // associate centroids with tracked cars
+            centroids2Cars();
+            // update tracked cars total counters
+            updateCarTotals();
+            // update analytics and performance info
             updateInfo();
             savePerformanceInfo();
         }
