@@ -257,7 +257,6 @@ pair<int, double> closestCentroid(const Point p, const map<int, Centroid> centro
 
          // If the movement is horizontal, only consider centroids with some small Y coordinate fluctuation
          if (entrance.compare("l") == 0 || entrance.compare("r") == 0) {
-             //if ((_p.y < (p.y-20)) || (_p.y > (p.y+20))){
              if ((_p.y < (p.y-70)) || (_p.y > (p.y+70))){
                  continue;
              }
@@ -303,7 +302,7 @@ void removeCentroid(int id) {
     }
 }
 
-// updateCentroids takes detected centroid points and updates trackeed centroids
+// updateCentroids takes detected centroid points and updates tracked centroids
 void updateCentroids(vector<Point> points) {
     if (points.size() == 0) {
         for (map<int, Centroid>::iterator it = centroids.begin(); it != centroids.end(); ++it) {
@@ -327,8 +326,8 @@ void updateCentroids(vector<Point> points) {
         for(vector<Point>::size_type i = 0; i != points.size(); i++) {
             pair<int, double> closest = closestCentroid(points[i], centroids);
 
-            // if the distance from the point to the closest centroid is too large, dont associate them together
-            // also avoid associating with centroid which alread has a different association
+            // if the distance from the point to the closest centroid is too large, don't associate them together
+            // also avoid associating with centroid which already has a different association
             if (closest.second > max_distance || (checked_points.find(closest.first) != checked_points.end())) {
                 continue;
             }
@@ -341,7 +340,7 @@ void updateCentroids(vector<Point> points) {
         }
 
         // iterate through all *already tracked* centroids and increment their gone frame count
-        // if they werent updated from the list of detected centroid points
+        // if they weren't updated from the list of detected centroid points
         for (map<int, Centroid>::iterator it = centroids.begin(); it != centroids.end(); ++it) {
             // if centroid wasn't updated - we assume it's missing from the frame
             if (checked_centroids.find(it->second.id) == checked_centroids.end()) {
@@ -459,7 +458,7 @@ void updateCarTotals() {
                 }
             } else {
                 if (entrance.compare("t") == 0 || entrance.compare("l") == 0) {
-                    // "negative" direcion i.e. car centroid coords along movement axis go down
+                    // "negative" direction i.e. car centroid coords along movement axis go down
                     if (direction < 0) {
                         total_out++;
                         tracked_cars.erase(id);
@@ -467,7 +466,7 @@ void updateCarTotals() {
                 }
 
                 if (entrance.compare("b") == 0 || entrance.compare("r") == 0) {
-                    // "positive" direcion i.e. car centroid coords along movement axis go up
+                    // "positive" direction i.e. car centroid coords along movement axis go up
                     if (direction > 0) {
                         total_out++;
                         tracked_cars.erase(id);
