@@ -328,7 +328,7 @@ void updateCentroids(vector<Point> points) {
 
             // if the distance from the point to the closest centroid is too large, dont associate them together
             // also avoid associating with centroid which alread has a different association
-            //if (closest.second > max_distance || (checked_points.find(closest.first) != checked_points.end())) {
+            if (closest.second > max_distance || (checked_points.find(closest.first) != checked_points.end())) {
                 continue;
             }
             // update position of the closest centroid
@@ -362,6 +362,45 @@ void updateCentroids(vector<Point> points) {
     }
 
     return;
+}
+
+// carMovement calculates movement of the car along particular movement axis according to the entrance position
+// as a mean value of all the previous poisitions of the car centroids and returns it
+int carMovement(vector<Point> traject, string entrance) {
+    int mean_movement = 0;
+
+    for(vector<Point>::size_type i = 0; i != traject.size(); i++) {
+        // when movement is horizontal only consider trajectory along X axis
+        if (entrance.compare("l") == 0 || entrance.compare("r") == 0) {
+            mean_movement = mean_movement + traject[i].x;
+        }
+        // when movement is vertical only consider trajectory along Y axis
+        if (entrance.compare("b") == 0 || entrance.compare("t") == 0) {
+            mean_movement = mean_movement + traject[i].y;
+        }
+    }
+
+    // calculate average centroid movement
+    mean_movement = mean_movement / traject.size();
+
+    return mean_movement;
+}
+
+// carDirection calculates the direction of the car movement along particular movement axis based on
+// the entrance position as a difference between current car's position and its previous movement
+int carDirection(Point p, int movement, string entrance) {
+    int direction = 0;
+
+    // when movement is horizontal only consider trajectory along X axis
+    if (entrance.compare("l") == 0 || entrance.compare("r") == 0) {
+       direction = p.x - movement;
+    }
+    // when movement is vertical only consider trajectory along Y axis
+    if (entrance.compare("b") == 0 || entrance.compare("t") == 0) {
+        direction = p.y - movement;
+    }
+
+    return direction;
 }
 
 // Function called by worker thread to process the next available video frame.
@@ -461,30 +500,11 @@ void frameRunner() {
                 } else {
                     car = tracked_cars[id];
                     // calculate mean movement from car trajectory
-                    int mean_movement = 0;
-                    for(vector<Point>::size_type i = 0; i != car.traject.size(); i++) {
-                        // when movement is horizontal only consider trajectory along X axis
-                        if (entrance.compare("l") == 0 || entrance.compare("r") == 0) {
-                            mean_movement = mean_movement + car.traject[i].x;
-                        }
-                        // when movement is vertical only consider trajectory along Y axis
-                        if (entrance.compare("b") == 0 || entrance.compare("t") == 0) {
-                            mean_movement = mean_movement + car.traject[i].y;
-                        }
-                    }
-                    // calculate average centroid movement
-                    mean_movement = mean_movement / car.traject.size();
+                    int movement = carMovement(car.traject, entrance);
                     // add the centroid to the car trajectory
                     car.traject.push_back(p);
-
-                    // when movement is horizontal only consider trajectory along X axis
-                    if (entrance.compare("l") == 0 || entrance.compare("r") == 0) {
-                        car.direction = p.x - mean_movement;
-                    }
-                    // when movement is vertical only consider trajectory along Y axis
-                    if (entrance.compare("b") == 0 || entrance.compare("t") == 0) {
-                        car.direction = p.y - mean_movement;
-                    }
+                    // calculate car direction based on trajectory and current position
+                    car.direction = carDirection(p, movement, entrance);
 
                     if (!car.counted && !car.gone) {
                         if (entrance.compare("t") == 0 || entrance.compare("l") == 0) {
