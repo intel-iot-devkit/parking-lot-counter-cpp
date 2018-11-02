@@ -64,6 +64,8 @@ float carconf;
 int backendId;
 int targetId;
 string entrance;
+int max_distance;
+int max_frames_gone;
 int rate;
 
 // flag to control background threads
@@ -74,10 +76,6 @@ static volatile sig_atomic_t sig_caught = 0;
 
 // mqtt parameters
 const string topic = "parking/counter";
-
-// max_frames_gone and max_distance are thresholds used when marking tracked car as gone
-int max_frames_gone = 20;
-int max_distance = 300;
 
 // Car contains information about trajectory of tracked car
 struct Car {
@@ -145,6 +143,8 @@ const char* keys =
                         "t: Top frame, "
                         "l: Left frame, "
                         "r: Right frame }"
+    "{ max_distance md  | 200 | Max distance in pixels between two related centroids. }"
+    "{ max_frames_gone mg | 25 | Max number of frames to track the centroid which doesnt change. }"
     "{ rate r      | 1 | Number of seconds between data updates to MQTT server. }";
 
 // nextImageAvailable returns the next image from the queue in a thread-safe way
@@ -256,15 +256,16 @@ pair<int, double> closestCentroid(const Point p, const map<int, Centroid> centro
          Point _p = it->second.p;
 
          // If the movement is horizontal, only consider centroids with some small Y coordinate fluctuation
-         if (entrance.compare("l") == 0 || entrance.compare("r")) {
-             if ((_p.y < (p.y-20)) || (_p.y > (p.y+20))){
+         if (entrance.compare("l") == 0 || entrance.compare("r") == 0) {
+             //if ((_p.y < (p.y-20)) || (_p.y > (p.y+20))){
+             if ((_p.y < (p.y-70)) || (_p.y > (p.y+70))){
                  continue;
              }
          }
 
          // If the movement is vertical, only consider centroids with some small X coordinate fluctuation
          if (entrance.compare("b") == 0 || entrance.compare("t") == 0) {
-             if (_p.x < (p.x-20) || _p.x > (p.x+20)){
+             if (_p.x < (p.x-50) || _p.x > (p.x+50)){
                  continue;
              }
          }
@@ -343,7 +344,7 @@ void updateCentroids(vector<Point> points) {
         // if they werent updated from the list of detected centroid points
         for (map<int, Centroid>::iterator it = centroids.begin(); it != centroids.end(); ++it) {
             // if centroid wasn't updated - we assume it's missing from the frame
-            if (checked_centroids.find(id) == checked_centroids.end()) {
+            if (checked_centroids.find(it->second.id) == checked_centroids.end()) {
                 it->second.gone_count++;
                 if (it->second.gone_count > max_frames_gone) {
                     removeCentroid(it->second.id);
@@ -472,6 +473,10 @@ void updateCarTotals() {
                         tracked_cars.erase(id);
                     }
                 }
+            }
+        } else {
+            if (gone) {
+                tracked_cars.erase(id);
             }
         }
     }
@@ -611,6 +616,8 @@ int main(int argc, char** argv)
     targetId = parser.get<int>("target");
     entrance = parser.get<string>("entrance");
     rate = parser.get<int>("rate");
+    max_distance = parser.get<int>("max_distance");
+    max_frames_gone = parser.get<int>("max_frames_gone");
 
     // connect MQTT messaging
     int result = mqtt_start(handleMQTTControlMessages);
