@@ -683,7 +683,7 @@ int main(int argc, char** argv)
                             FONT_HERSHEY_SIMPLEX, 0.5, CV_RGB(0, 255, 0));
         }
 
-        imshow("Parking Tracker", frame);
+        imshow("Parking Lot Counter", frame);
 
         if (waitKey(delay) >= 27 || sig_caught) {
             cout << "Attempting to stop background threads" << endl;
