@@ -1,4 +1,4 @@
-# Available Parking Tracker
+# Parking Lot Counter
 
 | Details            |              |
 |-----------------------|---------------|
@@ -6,11 +6,11 @@
 | Programming Language: |  C++\* |
 | Time to Complete:     |  45 min     |
 
-![app image](./images/parking-space-monitor.png)
+![app image](./images/parking-lot-counter.png)
 
 ## Introduction
 
-This parking space monitor is one of a series of reference implementations for Computer Vision (CV) using the OpenVINO™ toolkit. This application is designed for a parking lot area mounted camera which monitors available parking space by tracking the counts of the vehicles entering and leaving the parking lot area.
+The parking lot counter is one of a series of reference implementations for Computer Vision (CV) using the OpenVINO™ toolkit. This application is designed for a parking lot area mounted camera which monitors available parking by tracking the counts of the vehicles entering and leaving the parking lot area.
 
 This example is intended to demonstrate how to use CV to monitor parking space in dedicated parking area.
 
@@ -42,12 +42,11 @@ The application uses a video source, such as a camera, to grab frames, and then 
 
 The data can then optionally be sent to a MQTT machine to machine messaging server, as part of a parking space data analytics system.
 
-The DNN models used in this application are Intel® optimized models that are part of the OpenVINO™ toolkit.
+The DNN model used in this application is an Intel® optimized models that is part of the OpenVINO™ toolkit.
 
 You can find them here:
 
 - `/opt/intel/computer_vision_sdk/deployment_tools/intel_models/pedestrian-and-vehicle-detector-adas-0001
-`
 
 ![Code organization](./images/arch3.png)
 
@@ -68,7 +67,7 @@ You must configure the environment to use the OpenVINO™ toolkit one time per s
 
 Start by changing the current directory to wherever you have git cloned the application code. For example:
 ```
-    cd available-parking-tracker-cpp
+    cd parking-lot-counter-cpp
 ```
 
 If you do not yet have a `build` directory create one:
@@ -130,7 +129,7 @@ To run the code using 16-bit floats, you have to both set the `-t` flag to use t
 
 ## Sample videos
 
-There are several videos available to use as sample videos to show the capabilities of this application. You can download them by running these commands from the `available-parking-tracker-cpp` directory:
+There are several videos available to use as sample videos to show the capabilities of this application. You can download them by running these commands from the `parking-lot-counter-cpp` directory:
 ```
     mkdir resources
     cd resources
@@ -138,7 +137,7 @@ There are several videos available to use as sample videos to show the capabilit
     cd ..
 ```
 
-To then execute the code using one of these sample videos, run the following commands from the `available-parking-tracker-cpp` directory:
+To then execute the code using one of these sample videos, run the following commands from the `parking-lot-counter-cpp` directory:
 ```
     cd build
     ./monitor -m=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/pedestrian-and-vehicle-detector-adas-0001/FP32/pedestrian-and-vehicle-detector-adas-0001.bin -c=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/pedestrian-and-vehicle-detector-adas-0001/FP32/pedestrian-and-vehicle-detector-adas-0001.xml -i=../resources/car-detection.mp4 -cc=0.7 -e="b"
