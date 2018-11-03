@@ -10,9 +10,9 @@
 
 ## Introduction
 
-The parking lot counter is one of a series of reference implementations for Computer Vision (CV) using the OpenVINO™ toolkit. This application is designed for a parking lot area mounted camera which monitors available parking by tracking the counts of the vehicles entering and leaving the parking lot area.
+The parking lot counter is one of a series of reference implementations for Computer Vision (CV) using the OpenVINO™ toolkit. This application is designed for a parking space area mounted camera which monitors available parking space by tracking the counts of the vehicles entering and leaving the parking space area.
 
-This example is intended to demonstrate how to use CV to monitor parking space in dedicated parking area.
+This example is intended to demonstrate how to use CV to monitor parking spaces in dedicated parking area.
 
 ## Requirements
 
@@ -36,7 +36,7 @@ Refer to https://software.intel.com/en-us/articles/OpenVINO-Install-Linux for mo
 You will need the OpenCL™ Runtime package if you plan to run inference on the GPU as shown by the
 instructions below. It is not mandatory for CPU inference.
 
-## How it works
+## How it Works
 
 The application uses a video source, such as a camera, to grab frames, and then uses a Deep Neural Network (DNNs) to process the data. The network detects vehicles in the frame, and then if successful it tracks the vehicles leaving and entering the parking area adjusting the counts of the vehicles in the parking area thus providing the information about the available parking spaces.
 
@@ -56,14 +56,14 @@ The program creates three threads for concurrency:
 - worker thread that processes video frames using DNNs
 - worker thread that publishes any MQTT messages
 
-## Setting the build environment
+## Setting the Build Environment
 
 You must configure the environment to use the OpenVINO™ toolkit one time per session by running the following command:
 ```
     source /opt/intel/computer_vision_sdk/bin/setupvars.sh
 ```
 
-## Building the code
+## Building the Code
 
 Start by changing the current directory to wherever you have git cloned the application code. For example:
 ```
@@ -88,7 +88,7 @@ Now run the following commands:
 
 Once the commands are finished, you should have built the `monitor` application executable.
 
-## Running the code
+## Running the Code
 
 To see a list of the various options:
 ```
@@ -113,7 +113,9 @@ The `-entrance` flag controls which part of the video stream frame is to be used
 
 To control the car detection DNN confidence level use the `-carconf, -cc` flag eg. `-carconf=0.6` will track all cars whose DNN detection confidence level is higher than `60%`.
 
-### Hardware acceleration
+The calculations made to track movement using centroids have two parameters that can be set via flags. `--max_distance` set the maximum distance in pixels between two related centroids. In other words how big of a distance of movement between frames show be allowed before assuming that the object is a different vehicle. `--max_frames_gone` is the maximum number of frames to track a centroid which doesn't change, possibly due to being a parked vehicle.
+
+### Hardware Acceleration
 
 This application can take advantage of the hardware acceleration in the OpenVINO toolkit by using the `-b` and `-t` parameters.
 
@@ -127,7 +129,12 @@ To run the code using 16-bit floats, you have to both set the `-t` flag to use t
     ./monitor -m=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/pedestrian-and-vehicle-detector-adas-0001/FP16/pedestrian-and-vehicle-detector-adas-0001.bin -c=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/pedestrian-and-vehicle-detector-adas-0001/FP16/pedestrian-and-vehicle-detector-adas-0001.xml -b=2 -t=2
 ```
 
-## Sample videos
+To run the code using the VPU, you have to set the `-t` flag to `3` and also use the 16-bit FP16 version of the Intel® models:
+```
+    ./monitor -m=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/pedestrian-and-vehicle-detector-adas-0001/FP16/pedestrian-and-vehicle-detector-adas-0001.bin -c=/opt/intel/computer_vision_sdk/deployment_tools/intel_models/pedestrian-and-vehicle-detector-adas-0001/FP16/pedestrian-and-vehicle-detector-adas-0001.xml -b=2 -t=3
+```
+
+## Sample Videos
 
 There are several videos available to use as sample videos to show the capabilities of this application. You can download them by running these commands from the `parking-lot-counter-cpp` directory:
 ```
@@ -145,7 +152,7 @@ To then execute the code using one of these sample videos, run the following com
 
 The above command will use the bottom edge of the video stream frame as parking lot entrance and will count the cars driving up the frame as the cars entering the parking lot and the cars driving down the frame as the cars leaving the parking lot. The application displays in real time how many cars have entered and exited the partking lot.
 
-### Machine to machine messaging with MQTT
+### Machine to Machine Messaging with MQTT
 
 If you wish to use a MQTT server to publish data, you should set the following environment variables before running the program:
 ```
