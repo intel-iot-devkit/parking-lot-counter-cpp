@@ -685,7 +685,7 @@ int main(int argc, char** argv)
 
         imshow("Parking Tracker", frame);
 
-        if (waitKey(delay) >= 0 || sig_caught) {
+        if (waitKey(delay) >= 27 || sig_caught) {
             cout << "Attempting to stop background threads" << endl;
             keepRunning = false;
             break;
