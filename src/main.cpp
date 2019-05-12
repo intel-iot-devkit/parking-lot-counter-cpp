@@ -21,7 +21,6 @@
 * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-// std includes
 #include <iostream>
 #include <stdio.h>
 #include <thread>
@@ -57,7 +56,7 @@ VideoCapture cap;
 int delay = 5;
 Net net;
 
-// application parameters
+// Application parameters
 String model;
 String config;
 float carconf;
@@ -68,13 +67,13 @@ int max_distance;
 int max_frames_gone;
 int rate;
 
-// flag to control background threads
+// Flag to control background threads
 atomic<bool> keepRunning(true);
 
-// flag to handle UNIX signals
+// Flag to handle UNIX signals
 static volatile sig_atomic_t sig_caught = 0;
 
-// mqtt parameters
+// MQTT parameters
 const string topic = "parking/counter";
 
 // Car contains information about trajectory of tracked car
@@ -85,6 +84,7 @@ struct Car {
     bool gone;
     int direction;
 };
+
 // tracked_cars tracks detected cars by their ids
 map<int, Car> tracked_cars;
 
@@ -97,10 +97,11 @@ struct Centroid {
     Point p;
     int gone_count;
 };
+
 // centroids maps centroids by their ids
 map<int, Centroid> centroids;
 
-// total cars in and out of the parking
+// Total cars in and out of the parking
 int total_in = 0;
 int total_out = 0;
 
@@ -111,14 +112,14 @@ struct ParkingInfo
     int total_out;
     map<int, Centroid> centroids;
 };
+
 // currentInfo contains the latest ParkingInfo as tracked by the application
 ParkingInfo currentInfo;
-
 // nextImage provides queue for captured video frames
 queue<Mat> nextImage;
 // currentPerf stores the label which contains application performance information
 String currentPerf;
-// mutexes used in program to control thread access to shared variables
+// Mutexes used in program to control thread access to shared variables
 mutex m, m1, m2;
 
 const char* keys =
@@ -144,8 +145,8 @@ const char* keys =
                         "l: Left frame, "
                         "r: Right frame }"
     "{ max_distance md  | 200 | Max distance in pixels between two related centroids. }"
-    "{ max_frames_gone mg | 25 | Max number of frames to track the centroid which doesnt change. }"
-    "{ rate r      | 1 | Number of seconds between data updates to MQTT server. }";
+    "{ max_frames_gone mg | 25 | Max number of frames to track the centroid which does not change. }"
+    "{ rate r      | 0.5 | Number of seconds between data updates to MQTT server. }";
 
 // nextImageAvailable returns the next image from the queue in a thread-safe way
 Mat nextImageAvailable() {
@@ -156,7 +157,6 @@ Mat nextImageAvailable() {
         nextImage.pop();
     }
     m.unlock();
-
     return rtn;
 }
 
@@ -175,12 +175,10 @@ ParkingInfo getCurrentInfo() {
     ParkingInfo info;
     info = currentInfo;
     m2.unlock();
-
     return info;
 }
 
-// updateInfo uppdates the current ParkingInfo for the application to the latest detected values
-//void updateInfo(vector<Rect> detections) {
+// updateInfo updates the current ParkingInfo for the application to the latest detected values
 void updateInfo() {
     m2.lock();
     currentInfo.total_in = total_in;
@@ -204,49 +202,41 @@ string getCurrentPerf() {
     m1.lock();
     perf = currentPerf;
     m1.unlock();
-
     return perf;
 }
 
 // savePerformanceInfo sets the display string with the most current performance stats for the Inference Engine.
 void savePerformanceInfo() {
     m1.lock();
-
     vector<double> times;
     double freq = getTickFrequency() / 1000;
     double t = net.getPerfProfile(times) / freq;
-
     string label = format("Car inference time: %.2f ms", t);
-
     currentPerf = label;
-
     m1.unlock();
 }
 
-// publish MQTT message with a JSON payload
+// Publish MQTT message with a JSON payload
 void publishMQTTMessage(const string& topic, const ParkingInfo& info) {
     ostringstream s;
     s << "{\"TOTAL_IN\": \"" << info.total_in << "\" \"TOTAL_OUT\": \"" << info.total_out << "\"}";
     string payload = s.str();
-
     mqtt_publish(topic, payload);
-
     string msg = "MQTT message published to topic: " + topic;
     syslog(LOG_INFO, "%s", msg.c_str());
     syslog(LOG_INFO, "%s", payload.c_str());
 }
 
-// message handler for the MQTT subscription for the any desired control channel topic
+// Message handler for the MQTT subscription for any desired control channel topic
 int handleMQTTControlMessages(void *context, char *topicName, int topicLen, MQTTClient_message *message) {
     string topic = topicName;
     string msg = "MQTT message received: " + topic;
     syslog(LOG_INFO, "%s", msg.c_str());
-
     return 1;
 }
 
-// closestCentroid finds the id of the tracked centroid which is the closest to the point passed in as parameter.
-// The function uses euclidean distance as a measure of the closeness of the points and returns both as a pair
+/* closestCentroid finds the id of the tracked centroid which is the closest to the point passed in as parameter.
+   The function uses Euclidean distance as a measure of the closeness of the points and returns both as a pair */
 pair<int, double> closestCentroid(const Point p, const map<int, Centroid> centroids) {
     int id = 0;
     double dist = DBL_MAX;
@@ -278,7 +268,6 @@ pair<int, double> closestCentroid(const Point p, const map<int, Centroid> centro
              id = _id;
          }
     }
-
     return make_pair(id, dist);
 }
 
@@ -288,7 +277,6 @@ void addCentroid(Point p) {
     c.id = id;
     c.p = p;
     c.gone_count = 0;
-
     centroids[c.id] = c;
     id++;
 }
@@ -296,7 +284,7 @@ void addCentroid(Point p) {
 // removeCentroid removes existing centroid from the list of tracked centroids
 void removeCentroid(int id) {
     centroids.erase(id);
-    // find gone centroid id in tracked cars map and mark it as gone
+    // Find gone centroid id in tracked cars map and mark it as gone
     if (tracked_cars.find(id) != tracked_cars.end()){
         tracked_cars[id].gone = true;
     }
@@ -311,7 +299,6 @@ void updateCentroids(vector<Point> points) {
                 removeCentroid(it->second.id);
             }
         }
-
         return;
     }
 
@@ -322,27 +309,27 @@ void updateCentroids(vector<Point> points) {
     } else {
         set<int> checked_points;
         set<int> checked_centroids;
-        // iterate through all detected points and update tracked centroid positions
+        // Iterate through all detected points and update tracked centroid positions
         for(vector<Point>::size_type i = 0; i != points.size(); i++) {
             pair<int, double> closest = closestCentroid(points[i], centroids);
 
-            // if the distance from the point to the closest centroid is too large, don't associate them together
-            // also avoid associating with centroid which already has a different association
+            /* If the distance from the point to the closest centroid is too large, don't associate them together.
+               Also avoid associating with centroid which already has a different association */
             if (closest.second > max_distance || (checked_points.find(closest.first) != checked_points.end())) {
                 continue;
             }
-            // update position of the closest centroid
+            // Update position of the closest centroid
             centroids[closest.first].p = points[i];
             centroids[closest.first].gone_count = 0;
-            // add centroids to checked points
+            // Add centroids to checked points
             checked_points.insert(i);
             checked_centroids.insert(closest.first);
         }
 
-        // iterate through all *already tracked* centroids and increment their gone frame count
-        // if they weren't updated from the list of detected centroid points
+        /* Iterate through all *already tracked* centroids and increment their gone frame count, 
+           if they weren't updated from the list of detected centroid points */
         for (map<int, Centroid>::iterator it = centroids.begin(); it != centroids.end(); ++it) {
-            // if centroid wasn't updated - we assume it's missing from the frame
+            // If centroid wasn't updated, we assume it's missing from the frame
             if (checked_centroids.find(it->second.id) == checked_centroids.end()) {
                 it->second.gone_count++;
                 if (it->second.gone_count > max_frames_gone) {
@@ -351,80 +338,78 @@ void updateCentroids(vector<Point> points) {
             }
         }
 
-        // iterate through *detected* centroids and add the ones which werent associated
-        // with any of the tracked centroids and add start tracking them
+        /* Iterate through *detected* centroids and add the ones which werent associated
+           with any of the tracked centroids and add start tracking them */
         for(vector<Point>::size_type i = 0; i != points.size(); i++) {
-            // if detected point was not associated with any already tracked centroids we add it in
+            // If detected point was not associated with any already tracked centroids we add it in
             if (checked_points.find(i) == checked_points.end()) {
                 addCentroid(points[i]);
             }
         }
     }
-
     return;
 }
 
-// carMovement calculates movement of the car along particular movement axis according to the entrance position
-// as a mean value of all the previous poisitions of the car centroids and returns it
+/* carMovement calculates movement of the car along particular movement axis according to the entrance position
+   as a mean value of all the previous poisitions of the car centroids and returns it */
 int carMovement(vector<Point> traject, string entrance) {
     int mean_movement = 0;
 
     for(vector<Point>::size_type i = 0; i != traject.size(); i++) {
-        // when movement is horizontal only consider trajectory along X axis
+        // When movement is horizontal only consider trajectory along X axis
         if (entrance.compare("l") == 0 || entrance.compare("r") == 0) {
             mean_movement = mean_movement + traject[i].x;
         }
-        // when movement is vertical only consider trajectory along Y axis
+        // When movement is vertical only consider trajectory along Y axis
         if (entrance.compare("b") == 0 || entrance.compare("t") == 0) {
             mean_movement = mean_movement + traject[i].y;
         }
     }
 
-    // calculate average centroid movement
+    // Calculate average centroid movement
     mean_movement = mean_movement / traject.size();
-
     return mean_movement;
 }
 
-// carDirection calculates the direction of the car movement along particular movement axis based on
-// the entrance position as a difference between current car's position and its previous movement
+/* carDirection calculates the direction of the car movement along particular movement axis based on
+   the entrance position as a difference between current car's position and its previous movement */
 int carDirection(Point p, int movement, string entrance) {
     int direction = 0;
 
-    // when movement is horizontal only consider trajectory along X axis
+    // When movement is horizontal only consider trajectory along X axis
     if (entrance.compare("l") == 0 || entrance.compare("r") == 0) {
        direction = p.x - movement;
     }
-    // when movement is vertical only consider trajectory along Y axis
+    // When movement is vertical only consider trajectory along Y axis
     if (entrance.compare("b") == 0 || entrance.compare("t") == 0) {
         direction = p.y - movement;
     }
-
     return direction;
 }
 
 // centroids2Cars iterates through all centroids and associates them with tracked_cars
 void centroids2Cars() {
-    // iterate through updated centroids and update tracked car counts
+    // Iterate through updated centroids and update tracked car counts
     for (map<int, Centroid>::iterator it = centroids.begin(); it != centroids.end(); ++it) {
         int id = it->second.id;
         Point p = it->second.p;
 
         Car car;
-        // if the centroid is not tracked yet, add it to tracked_cars
+        // If the centroid is not tracked yet, add it to tracked_cars
         if (tracked_cars.find(id) == tracked_cars.end()) {
             car.id = id;
             car.traject.push_back(p);
             car.counted = false;
             car.gone = false;
             car.direction = 0;
-        } else {
+        } 
+        else {
             car = tracked_cars[id];
-            // calculate mean movement from car trajectory
+            // Calculate mean movement from car trajectory
             int movement = carMovement(car.traject, entrance);
-            // add the centroid to the car trajectory
+            // Add the centroid to the car trajectory
             car.traject.push_back(p);
-            // calculate car direction based on trajectory and current position
+            // Calculate car direction based on trajectory and current position
             car.direction = carDirection(p, movement, entrance);
         }
         tracked_cars[id] = car;
@@ -440,9 +425,9 @@ void updateCarTotals() {
         bool counted  = it->second.counted;
 
         if (!counted) {
-            if (!gone){
+            if (!gone) {
                 if (entrance.compare("t") == 0 || entrance.compare("l") == 0) {
-                    // direction is "positive" i.e. movement along Y/X axis goes up
+                    // Direction is "positive" i.e. movement along Y/X axis goes up
                     if (direction > 0) {
                         total_in++;
                         it->second.counted = true;
@@ -450,15 +435,16 @@ void updateCarTotals() {
                 }
 
                 if (entrance.compare("b") == 0 || entrance.compare("r") == 0) {
-                    // direction is "negative" i.e. movement along Y/X axis goes down
+                    // Direction is "negative" i.e. movement along Y/X axis goes down
                     if (direction < 0) {
                         total_in++;
                         it->second.counted = true;
                     }
                 }
-            } else {
+            } 
+            else {
                 if (entrance.compare("t") == 0 || entrance.compare("l") == 0) {
-                    // "negative" direction i.e. car centroid coords along movement axis go down
+                    // "Negative" direction i.e. car centroid coords along movement axis go down
                     if (direction < 0) {
                         total_out++;
                         tracked_cars.erase(id);
@@ -466,14 +452,15 @@ void updateCarTotals() {
                 }
 
                 if (entrance.compare("b") == 0 || entrance.compare("r") == 0) {
-                    // "positive" direction i.e. car centroid coords along movement axis go up
+                    // "Positive" direction i.e. car centroid coords along movement axis go up
                     if (direction > 0) {
                         total_out++;
                         tracked_cars.erase(id);
                     }
                 }
             }
-        } else {
+        } 
+        else {
             if (gone) {
                 tracked_cars.erase(id);
             }
@@ -486,30 +473,32 @@ void frameRunner() {
     while (keepRunning.load()) {
         Mat next = nextImageAvailable();
         if (!next.empty()) {
-            // convert to 4d vector as required by vehicle detection model and detect cars
+            // Convert to 4d vector as required by vehicle detection model and detect cars
             blobFromImage(next, blob, 1.0, Size(672, 384));
             net.setInput(blob);
             Mat result = net.forward();
 
-            // get detected cars and in and out counts
+            // Get detected cars and in and out counts
             vector<Rect> frame_cars;
             int count_in = 0;
             int count_out = 0;
             float* data = (float*)result.data;
 
-            for (size_t i = 0; i < result.total(); i += 7)
-            {
+            for (size_t i = 0; i < result.total(); i += 7) {
                 int label = (int)data[i + 1];
                 float confidence = data[i + 2];
-                if (label == 1 && confidence > carconf)
-                {
+                if (label == 1 && confidence > carconf) {
                     int left = (int)(data[i + 3] * frame.cols);
                     int top = (int)(data[i + 4] * frame.rows);
                     int right = (int)(data[i + 5] * frame.cols);
                     int bottom = (int)(data[i + 6] * frame.rows);
                     int width = right - left + 1;
                     int height = bottom - top + 1;
-
+                    
+                    // Check whether the detected object is going out of range of the frame  
+                    if(bottom >= next.rows) {
+                        height = next.rows - top;
+                    }
                     frame_cars.push_back(Rect(left, top, width, height));
                 }
             }
@@ -517,27 +506,28 @@ void frameRunner() {
             vector<Point> frame_centroids;
             vector<Rect>  car_detections;
             for(auto const& fc: frame_cars) {
-                // make sure the car rect is completely inside the main Mat
+                // Make sure the car rect is completely inside the main Mat
                 if ((fc & Rect(0, 0, next.cols, next.rows)) != fc) {
                     continue;
                 }
 
-                // detected car rectangle dimensions
+                // Detected car rectangle dimensions
                 int width = fc.width;
                 int height = fc.height;
-                // if detected rectangle is too small, skip it
+                // If detected rectangle is too small, skip it
                 if (width < 70 || height < 70) {
                     continue;
                 }
 
-                // Sometimes detected car rectangle stretches way over the actual car dimensions
-                // so we clip the sizes of the rectangle to avoid skewing the centroid positions
+                /* Sometimes detected car rectangle stretches way over the actual car dimensions
+                   so we clip the sizes of the rectangle to avoid skewing the centroid positions */
                 int w_clip = 200;
                 if (width > w_clip) {
                     if ((fc.x + w_clip) < frame.cols) {
                         width = w_clip;
                     }
-                } else if ((fc.x + width) > frame.cols) {
+                } 
+                else if ((fc.x + width) > frame.cols) {
                     width = frame.cols - fc.x;
                 }
 
@@ -546,27 +536,28 @@ void frameRunner() {
                     if ((fc.y + h_clip) < frame.rows){
                         height = h_clip;
                     }
-                } else if ((fc.y + height) > frame.rows) {
+                } 
+                else if ((fc.y + height) > frame.rows) {
                     height = frame.rows - fc.y;
                 }
 
-                // calculate detected car centroid coordinates
+                // Calculate detected car centroid coordinates
                 int x = fc.x + static_cast<int>(width/2.0);
                 int y = fc.y + static_cast<int>(height/2.0);
 
-                // append detected centroid and draw rectangle
+                // Append detected centroid and draw rectangle
                 frame_centroids.push_back(Point(x,y));
                 car_detections.push_back(Rect(fc.x, fc.y, width, height));
             }
 
-            // update tracked centroids using the centroids detected in the frame
+            // Update tracked centroids using the centroids detected in the frame
             updateCentroids(frame_centroids);
 
-            // associate centroids with tracked cars
+            // Associate centroids with tracked cars
             centroids2Cars();
-            // update tracked cars total counters
+            // Update tracked cars total counters
             updateCarTotals();
-            // update analytics and performance info
+            // Update analytics and performance info
             updateInfo();
             savePerformanceInfo();
         }
@@ -586,10 +577,10 @@ void messageRunner() {
     cout << "MQTT sender thread stopped" << endl;
 }
 
-// signal handler for the main thread
+// Signal handler for the main thread
 void handle_sigterm(int signum)
 {
-    /* we only handle SIGTERM and SIGKILL here */
+    // We only handle SIGTERM and SIGKILL here
     if (signum == SIGTERM) {
         cout << "Interrupt signal (" << signum << ") received" << endl;
         sig_caught = 1;
@@ -598,7 +589,7 @@ void handle_sigterm(int signum)
 
 int main(int argc, char** argv)
 {
-    // parse command parameters
+    // Parse command line arguments
     CommandLineParser parser(argc, argv, keys);
     parser.about("Use this script to using OpenVINO.");
     if (argc == 1 || parser.has("help"))
@@ -618,7 +609,7 @@ int main(int argc, char** argv)
     max_distance = parser.get<int>("max_distance");
     max_frames_gone = parser.get<int>("max_frames_gone");
 
-    // connect MQTT messaging
+    // Connect MQTT messaging
     int result = mqtt_start(handleMQTTControlMessages);
     if (result == 0) {
         syslog(LOG_INFO, "MQTT started.");
@@ -628,16 +619,16 @@ int main(int argc, char** argv)
 
     mqtt_connect();
 
-    // read in car detection model
+    // Read in car detection model
     net = readNet(model, config);
     net.setPreferableBackend(backendId);
     net.setPreferableTarget(targetId);
 
-    // open video capture source
+    // Open video capture source
     if (parser.has("input")) {
         cap.open(parser.get<String>("input"));
 
-        // also adjust delay so video playback matches the number of FPS in the file
+        // Adjust delay so video playback matches the number of FPS in the file
         double fps = cap.get(CAP_PROP_FPS);
         delay = 1000/fps;
     }
@@ -649,33 +640,33 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    // register SIGTERM signal handler
+    // Register SIGTERM signal handler
     signal(SIGTERM, handle_sigterm);
 
-    // start worker threads
+    // Start worker threads
     thread t1(frameRunner);
     thread t2(messageRunner);
 
-    // read video input data
+    // Read video input data
     for (;;) {
         cap.read(frame);
 
         if (frame.empty()) {
             keepRunning = false;
-            cerr << "ERROR! blank frame grabbed\n";
+            cout << "Video Finished\n";
             break;
         }
 
         addImage(frame);
 
-        // print Inference Engine performance info
+        // Print Inference Engine performance info
         string label = getCurrentPerf();
         putText(frame, label, Point(0, 25), FONT_HERSHEY_SIMPLEX, 0.5, CV_RGB(255, 255, 255));
 
         ParkingInfo info = getCurrentInfo();
         label = format("Cars In: %d Cars Out: %d", info.total_in, info.total_out);
         putText(frame, label, Point(0, 45), FONT_HERSHEY_SIMPLEX, 0.5, CV_RGB(255, 255, 255));
-        // draw car centroids
+        // Draw car centroids
         for (map<int, Centroid>::const_iterator it = info.centroids.begin(); it != info.centroids.end(); ++it) {
             circle(frame, it->second.p, 5.0, CV_RGB(0, 255, 0), 2);
             label = format("[%d, %d]", it->second.p.x, it->second.p.y);
@@ -692,12 +683,12 @@ int main(int argc, char** argv)
         }
     }
 
-    // wait for the threads to finish
+    // Wait for the threads to finish
     t1.join();
     t2.join();
     cap.release();
 
-    // disconnect MQTT messaging
+    // Disconnect MQTT messaging
     mqtt_disconnect();
     mqtt_close();
 
