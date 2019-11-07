@@ -1,0 +1,8 @@
+{
+   "inputs":[
+      {
+         "video":"../resources/car-detection.mp4"
+      }
+   ]
+}
+

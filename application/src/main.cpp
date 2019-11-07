@@ -35,6 +35,8 @@
 #include <syslog.h>
 #include <math.h>
 #include <float.h>
+#include <nlohmann/json.hpp>
+#include <fstream>
 
 // OpenCV includes
 #include <opencv2/core.hpp>
@@ -49,6 +51,8 @@
 using namespace std;
 using namespace cv;
 using namespace dnn;
+using json = nlohmann::json;
+json jsonobj;
 
 // OpenCV-related variables
 Mat frame, blob;
@@ -589,13 +593,18 @@ void handle_sigterm(int signum)
 
 int main(int argc, char** argv)
 {
+    std::string conf_file = "../resources/config.json", input;
+    std::ifstream confFile(conf_file);
+    confFile>>jsonobj;
+    auto obj = jsonobj["inputs"];
+    input = obj[0]["video"];
+
     // Parse command line arguments
     CommandLineParser parser(argc, argv, keys);
     parser.about("Use this script to using OpenVINO.");
     if (argc == 1 || parser.has("help"))
     {
         parser.printMessage();
-
         return 0;
     }
 
@@ -624,17 +633,15 @@ int main(int argc, char** argv)
     net.setPreferableBackend(backendId);
     net.setPreferableTarget(targetId);
 
-    // Open video capture source
-    if (parser.has("input")) {
-        cap.open(parser.get<String>("input"));
-
-        // Adjust delay so video playback matches the number of FPS in the file
+    // open video capture source
+    if (input.size() == 1 && *(input.c_str()) >= '0' && *(input.c_str()) <= '9')
+        cap.open(std::stoi(input));
+    else
+    {
+        cap.open(input);
         double fps = cap.get(CAP_PROP_FPS);
         delay = 1000/fps;
     }
-    else
-        cap.open(parser.get<int>("device"));
-
     if (!cap.isOpened()) {
         cerr << "ERROR! Unable to open video source\n";
         return -1;

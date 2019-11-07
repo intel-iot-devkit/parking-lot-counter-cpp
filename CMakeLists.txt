@@ -51,13 +51,15 @@ if(NOT OpenCV_FOUND)
 endif( )
 
 include_directories(${OpenCV_INCLUDE_DIRS})
+include_directories(json/single_include)
+include_directories(application/include)
 
 # Install paho MQTT dependency
 include(pahomqtt)
 
 # Application executables
 set(MONITOR monitor)
-set(DSOURCES src/main.cpp src/mqtt.cpp)
+set(DSOURCES application/src/main.cpp application/src/mqtt.cpp)
 add_executable(${MONITOR} ${DSOURCES})
 add_dependencies(${MONITOR} pahomqtt)
 set_target_properties(${MONITOR} ${TRAINER} PROPERTIES COMPILE_FLAGS "-pthread -std=c++11")
