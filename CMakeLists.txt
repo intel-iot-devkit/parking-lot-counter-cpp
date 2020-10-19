@@ -39,7 +39,7 @@ message(STATUS "${Blue}Intel Shopper Gaze Monitor${CR}")
 message(STATUS "${Blue}Checking OS version...${CR}")
 
 set(REQUIRED_OS_ID "Ubuntu")
-set(REQUIRED_OS_VERSION "16.04")
+set(REQUIRED_OS_VERSION "18.04")
 include(osdetect)
 
 # Check for Intel OpenVINO

@@ -2,7 +2,7 @@
 
 | Details            |              |
 |-----------------------|---------------|
-| Target OS:            |  Ubuntu\* 16.04 LTS   |
+| Target OS:            |  Ubuntu\* 18.04 LTS   |
 | Programming Language: |  C++ |
 | Time to Complete:     |  45 min     |
 
@@ -18,14 +18,14 @@ This reference implementations is designed for a parking space area with mounted
 * 6th to 8th Generation Intel® Core™ processors with Intel® Iris® Pro graphics or Intel® HD Graphics
 
 ### Software
-* [Ubuntu\* 16.04 LTS](http://releases.ubuntu.com/16.04/)<br>
+* [Ubuntu\* 18.04 LTS](http://releases.ubuntu.com/18.04/)<br>
   **Note**: We recommend using a 4.14+ kernel to use this software. Run the following command to determine your kernel version:
   ```
     uname -a
   ```
   
 * OpenCL™ Runtime Package
-* Intel® Distribution of OpenVINO™ toolkit 2019 R3 Release
+* Intel® Distribution of OpenVINO™ toolkit 2020 R3 Release
 
 ## How it Works
 
@@ -47,7 +47,7 @@ The program creates three threads for concurrency:
 Clone the reference implementation:
 ```
 sudo apt-get update && sudo apt-get install git
-git clone https://github.com/intel-iot-devkit/parking-lot-counter-cpp.git
+git clone https://github.com/intel-iot-devkit/parking-lot-counter-cpp.git 
 ```
 
 ### Install OpenVINO
@@ -63,7 +63,7 @@ Mosquitto is an open source message broker that implements the MQTT protocol. Th
 
 ## Which model to use
 
-This application uses the [pedestrian-and-vehicle-detector-adas-0001](https://docs.openvinotoolkit.org/2019_R3/_models_intel_pedestrian_and_vehicle_detector_adas_0001_description_pedestrian_and_vehicle_detector_adas_0001.html) Intel® model, that can be downloaded using the **model downloader**. The **model downloader** downloads the __.xml__ and __.bin__ files that will be used by the application.
+This application uses the [pedestrian-and-vehicle-detector-adas-0001](https://docs.openvinotoolkit.org/2020.3/_models_intel_pedestrian_and_vehicle_detector_adas_0001_description_pedestrian_and_vehicle_detector_adas_0001.html) Intel® model, that can be downloaded using the **model downloader**. The **model downloader** downloads the __.xml__ and __.bin__ files that will be used by the application.
 
 To download the models and install the dependencies of the application, run the below command in the `parking-lot-counter-cpp` directory:
 ```

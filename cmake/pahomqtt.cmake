@@ -30,7 +30,7 @@ pkg_search_module(OPENSSL REQUIRED openssl)
 ExternalProject_add(
     pahomqtt
     GIT_REPOSITORY "https://github.com/eclipse/paho.mqtt.c.git"
-    GIT_TAG "master"
+    GIT_TAG "v1.3.0"
     UPDATE_COMMAND ""
     PATCH_COMMAND ""
     SOURCE_DIR "${CMAKE_BINARY_DIR}/paho-src"

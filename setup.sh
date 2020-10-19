@@ -23,6 +23,8 @@
 
 sudo apt-get update
 sudo apt-get install mosquitto mosquitto-clients
+sudo apt-get install libssl-dev
+sudo ssh install cmd
 
 if [ -d "json" ]
 then
