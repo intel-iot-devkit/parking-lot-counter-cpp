@@ -190,6 +190,8 @@ This application can take advantage of the hardware acceleration in the Intel® 
     ```
     **FP16**: FP16 is half-precision floating-point arithmetic uses 16 bits. 5 bits for the magnitude and 10 bits for the precision. For more information, [click here](https://en.wikipedia.org/wiki/Half-precision_floating-point_format)<br>
 
+**Note:** The Model Loading Time for GPU is quite long. So to observe the inference for GPU, please try to use longer duration videos.
+
 ### Run on the Intel® Neural Compute Stick
 
 To run the application using the Intel® Neural Compute Stick, use the below command:
